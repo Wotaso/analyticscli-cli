@@ -2,6 +2,7 @@ export type CliConfig = {
   apiUrl: string;
   token?: string;
   tokenStorage?: 'config_file' | 'system_keychain';
+  selectedProjectId?: string;
   skillAutoUpdate?: boolean;
   lastSkillSyncAt?: string;
   setupCompletedAt?: string;

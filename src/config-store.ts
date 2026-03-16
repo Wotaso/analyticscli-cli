@@ -26,6 +26,8 @@ export const readConfig = async (): Promise<CliConfig> => {
         parsed.tokenStorage === 'system_keychain' || parsed.tokenStorage === 'config_file'
           ? parsed.tokenStorage
           : undefined,
+      selectedProjectId:
+        typeof parsed.selectedProjectId === 'string' ? parsed.selectedProjectId : undefined,
       skillAutoUpdate: typeof parsed.skillAutoUpdate === 'boolean' ? parsed.skillAutoUpdate : false,
       lastSkillSyncAt: typeof parsed.lastSkillSyncAt === 'string' ? parsed.lastSkillSyncAt : undefined,
       setupCompletedAt: typeof parsed.setupCompletedAt === 'string' ? parsed.setupCompletedAt : undefined,

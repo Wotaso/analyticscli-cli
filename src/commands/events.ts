@@ -267,20 +267,21 @@ const validateRangeOptions = (options: {
 };
 
 export const registerEventCommands = (context: CliCommandContext): void => {
-  const { program, withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { program, withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   const events = program.command('events').description('Event export helpers');
 
   events
     .command('months')
     .description('List months with available events for a given year')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--year <year>', 'UTC year, e.g. 2026')
-    .action(async (options: { project: string; year: string }) => {
+    .action(async (options: { project?: string; year: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const qs = new URLSearchParams({
-          projectId: options.project,
+          projectId,
           year: String(Number(options.year)),
           includeDebug: String(includeDebugFlag()),
         });
@@ -296,17 +297,18 @@ export const registerEventCommands = (context: CliCommandContext): void => {
   events
     .command('export')
     .description('Download monthly events export as CSV')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--year <year>', 'UTC year, e.g. 2026')
     .requiredOption('--month <month>', 'UTC month number 1-12')
     .option('--out <path>', 'Output file path')
-    .action(async (options: { project: string; year: string; month: string; out?: string }) => {
+    .action(async (options: { project?: string; year: string; month: string; out?: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const year = Number(options.year);
         const month = Number(options.month);
         const qs = new URLSearchParams({
-          projectId: options.project,
+          projectId,
           year: String(year),
           month: String(month),
           format: 'csv',
@@ -346,7 +348,7 @@ export const registerEventCommands = (context: CliCommandContext): void => {
             token: root.token,
             format: root.format,
             quiet: root.quiet,
-            projectId: options.project,
+            projectId,
             since: asyncRange.since,
             until: asyncRange.until,
             includeDebug: includeDebugFlag(),
@@ -359,14 +361,14 @@ export const registerEventCommands = (context: CliCommandContext): void => {
   events
     .command('export-range')
     .description('Queue and download a historical events export for an arbitrary range')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--since <iso>', 'UTC start timestamp, e.g. 2025-01-01T00:00:00.000Z')
     .option('--until <iso>', 'UTC end timestamp, e.g. 2025-02-01T00:00:00.000Z')
     .option('--last <duration>', 'Relative range like 90d')
     .option('--out <path>', 'Output file path')
     .action(
       async (options: {
-        project: string;
+        project?: string;
         since?: string;
         until?: string;
         last?: string;
@@ -376,12 +378,13 @@ export const registerEventCommands = (context: CliCommandContext): void => {
           validateRangeOptions(options);
 
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           await runHistoricalExport({
             apiUrl: root.apiUrl,
             token: root.token,
             format: root.format,
             quiet: root.quiet,
-            projectId: options.project,
+            projectId,
             since: options.since,
             until: options.until,
             last: options.last,

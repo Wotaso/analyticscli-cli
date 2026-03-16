@@ -4,7 +4,7 @@ import { requestApi, requestCollect } from '../http.js';
 import type { CliCommandContext } from './context.js';
 
 export const registerFeedbackCommands = (context: CliCommandContext): void => {
-  const { program, withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { program, withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   const feedback = program.command('feedback').description('Feedback data helpers');
 
@@ -137,15 +137,16 @@ export const registerFeedbackCommands = (context: CliCommandContext): void => {
 
   feedback
     .command('export')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--last <duration>', 'Time range like 30d', '30d')
     .option('--limit <n>', 'Page size', '100')
     .option('--cursor <cursor>', 'Pagination cursor')
-    .action(async (options: { project: string; last: string; limit: string; cursor?: string }) => {
+    .action(async (options: { project?: string; last: string; limit: string; cursor?: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const qs = new URLSearchParams({
-          projectId: options.project,
+          projectId,
           last: options.last,
           limit: String(Number(options.limit)),
           includeDebug: String(includeDebugFlag()),

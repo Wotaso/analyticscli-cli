@@ -2,10 +2,11 @@ import { print } from '../analytics-utils.js';
 import { CLI_WRITE_COMMANDS_ENABLED } from '../constants.js';
 import { persistAuthToken, readConfig } from '../config-store.js';
 import { requestApi } from '../http.js';
+import { fetchProjectOptions, promptProjectSelection, setSelectedProjectId } from '../project-selection.js';
 import type { CliCommandContext } from './context.js';
 
 export const registerProjectCommands = (context: CliCommandContext): void => {
-  const { program, withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { program, withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   const projects = program.command('projects').description('Project operations');
 
@@ -20,6 +21,57 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
           token: root.token,
         });
         print(root.format, payload);
+      });
+    });
+
+  projects
+    .command('select')
+    .description('Select and persist default project (arrow keys in interactive terminal)')
+    .option('--project <id>', 'Project ID to set directly without interactive picker')
+    .action(async (options: { project?: string }) => {
+      await withErrorHandling(async () => {
+        const root = getRootOptions();
+        const providedProject = options.project?.trim();
+
+        if (providedProject) {
+          await setSelectedProjectId(providedProject);
+          print(root.format, {
+            ok: true,
+            selectedProjectId: providedProject,
+            source: 'direct_option',
+          });
+          return;
+        }
+
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
+          throw Object.assign(
+            new Error('Interactive project selection requires a TTY. Pass --project <id> instead.'),
+            { exitCode: 2 },
+          );
+        }
+
+        const projectsInScope = await fetchProjectOptions({
+          apiUrl: root.apiUrl,
+          token: root.token,
+        });
+        if (projectsInScope.length === 0) {
+          throw Object.assign(new Error('No accessible projects found for this token.'), {
+            exitCode: 3,
+          });
+        }
+
+        const selected =
+          projectsInScope.length === 1
+            ? projectsInScope[0]!
+            : await promptProjectSelection(projectsInScope, 'Select default project');
+
+        await setSelectedProjectId(selected.id);
+        print(root.format, {
+          ok: true,
+          selectedProjectId: selected.id,
+          selectedProjectLabel: selected.label,
+          source: projectsInScope.length === 1 ? 'single_project_auto' : 'interactive_picker',
+        });
       });
     });
 
@@ -60,13 +112,14 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
     keys
       .command('list')
       .description('Show the project public API key metadata')
-      .requiredOption('--project <id>', 'Project ID')
-      .action(async (options: { project: string }) => {
+      .option('--project <id>', 'Project ID (optional when a default project is selected)')
+      .action(async (options: { project?: string }) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const payload = await requestApi(
             'GET',
-            `/v1/projects/${encodeURIComponent(options.project)}/api-keys`,
+            `/v1/projects/${encodeURIComponent(projectId)}/api-keys`,
             undefined,
             {
               apiUrl: root.apiUrl,
@@ -83,15 +136,16 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
   schema
     .command('events')
     .description('List discovered events and known properties')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--limit <n>', 'Result limit', '100')
     .option('--last <duration>', 'Time range like 14d', '14d')
-    .action(async (options: { project: string; limit: string; last: string }) => {
+    .action(async (options: { project?: string; limit: string; last: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const limit = Number(options.limit);
         const qs = new URLSearchParams({
-          projectId: options.project,
+          projectId,
           limit: String(limit),
           last: options.last,
           includeDebug: String(includeDebugFlag()),

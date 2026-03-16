@@ -23,7 +23,7 @@ type FlowSelectionOptions = {
 };
 
 type RootQueryOptions = FlowSelectionOptions & {
-  project: string;
+  project?: string;
   last: string;
 };
 
@@ -123,12 +123,12 @@ export const registerAdvancedQueryCommands = (
   program: Command,
   context: CliCommandContext,
 ): void => {
-  const { withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   program
     .command('generic')
     .description('Flexible, policy-limited grouped analytics query')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--metric <metric>', `Metric: ${GENERIC_METRICS.join('|')}`, 'event_count')
     .option('--group-by <list>', `Comma-separated dimensions: ${GENERIC_DIMENSIONS.join(',')}`)
     .option('--events <list>', 'Optional event-name filters, comma-separated')
@@ -165,6 +165,7 @@ export const registerAdvancedQueryCommands = (
       ) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const metric = parseEnumOption(options.metric, '--metric', GENERIC_METRICS);
           const orderBy = parseEnumOption(options.orderBy, '--order-by', GENERIC_ORDER_BY);
           const groupBy = parseGenericGroupByOption(options.groupBy);
@@ -193,7 +194,7 @@ export const registerAdvancedQueryCommands = (
             'POST',
             '/v1/query/generic',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               metric,
               groupBy,
               limit,
@@ -257,7 +258,7 @@ export const registerAdvancedQueryCommands = (
   program
     .command('retention')
     .description('Cohort retention by day offsets (e.g. D1/D7/D30) with avg active days')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--anchor-event <name>', 'Cohort anchor event', ONBOARDING_START_EVENT)
     .option('--active-event <name>', 'Optional active event filter (default: any event)')
     .option('--days <list>', 'Comma-separated day offsets, e.g. 1,7,30', '1,7,30')
@@ -280,6 +281,7 @@ export const registerAdvancedQueryCommands = (
       ) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const days = parseRetentionDaysOption(options.days);
           const maxAgeDays = parseIntegerOption(options.maxAgeDays, '--max-age-days', 1, 365);
 
@@ -287,7 +289,7 @@ export const registerAdvancedQueryCommands = (
             'POST',
             '/v1/query/retention',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               anchorEvent: options.anchorEvent,
               activeEvent: options.activeEvent,
               days,
@@ -337,7 +339,7 @@ export const registerAdvancedQueryCommands = (
   program
     .command('survey')
     .description('Aggregate survey responses (anonymized) by question and answer')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--event <name>', 'Survey response event name', 'onboarding:survey_response')
     .option('--survey-key <key>', 'Optional survey key filter')
     .option('--question-key <key>', 'Optional question key filter')
@@ -364,6 +366,7 @@ export const registerAdvancedQueryCommands = (
       ) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const topQuestions = parseIntegerOption(options.topQuestions, '--top-questions', 1, 100);
           const topAnswers = parseIntegerOption(options.topAnswers, '--top-answers', 1, 100);
           const minUsers = parseIntegerOption(options.minUsers, '--min-users', 1, 500);
@@ -372,7 +375,7 @@ export const registerAdvancedQueryCommands = (
             'POST',
             '/v1/query/survey',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               eventName: options.event,
               surveyKey: options.surveyKey,
               questionKey: options.questionKey,
@@ -454,7 +457,7 @@ export const registerAdvancedQueryCommands = (
 
   program
     .command('breakdown')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--by <prop>', 'Property name')
     .requiredOption('--type <type>', 'event_count|conversion_after')
     .option('--event <name>', 'Required for event_count')
@@ -483,6 +486,7 @@ export const registerAdvancedQueryCommands = (
       ) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
 
           const query =
             options.type === 'event_count'
@@ -501,7 +505,7 @@ export const registerAdvancedQueryCommands = (
             'POST',
             '/v1/query/breakdown',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               by: options.by,
               top: Number(options.top),
               last: options.last,

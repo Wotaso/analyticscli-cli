@@ -4,7 +4,7 @@ import { mapStatusToExitCode } from '../http.js';
 import type { CliCommandContext } from './context.js';
 
 export const registerDevCommands = (context: CliCommandContext): void => {
-  const { program, withErrorHandling, getRootOptions } = context;
+  const { program, withErrorHandling, getRootOptions, resolveProjectId } = context;
 
   const dev = program.command('dev').description('Local development helpers');
 
@@ -13,12 +13,13 @@ export const registerDevCommands = (context: CliCommandContext): void => {
     .description('Send deterministic fixture events to ingest endpoint')
     .requiredOption('--endpoint <url>', 'Collector base URL, e.g. http://localhost:8787')
     .requiredOption('--api-key <key>', 'Project write API key')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--sessions <n>', 'Number of sessions', '20')
     .action(
-      async (options: { endpoint: string; apiKey: string; project: string; sessions: string }) => {
+      async (options: { endpoint: string; apiKey: string; project?: string; sessions: string }) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const sessions = Number(options.sessions);
           const events: Array<Record<string, unknown>> = [];
 
@@ -68,7 +69,7 @@ export const registerDevCommands = (context: CliCommandContext): void => {
               'x-api-key': options.apiKey,
             },
             body: JSON.stringify({
-              projectId: options.project,
+              projectId,
               sentAt: new Date().toISOString(),
               events,
             }),

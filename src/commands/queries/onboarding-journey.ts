@@ -29,7 +29,7 @@ import type { FlowSelectorPayload } from '../../types.js';
 import type { CliCommandContext } from '../context.js';
 
 type OnboardingJourneyOptions = {
-  project: string;
+  project?: string;
   within: string;
   last: string;
   eventsLimit: string;
@@ -62,12 +62,12 @@ export const registerOnboardingJourneyCommand = (
   getCommand: Command,
   context: CliCommandContext,
 ): void => {
-  const { withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   getCommand
     .command('onboarding-journey')
     .description('Get onboarding -> paywall -> purchase journey metrics for new users')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .option('--within <scope>', 'session|user', 'user')
     .option('--last <duration>', 'Time range like 30d', '30d')
     .option('--events-limit <n>', 'Schema events scan limit', '500')
@@ -80,6 +80,7 @@ export const registerOnboardingJourneyCommand = (
     .action(async (options: OnboardingJourneyOptions) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const flowSelection = resolveFlowSelectorOption(options).flow;
         const includeTrends = Boolean(options.withTrends);
         const trendInterval = resolveTrendInterval(String(options.last));
@@ -92,7 +93,7 @@ export const registerOnboardingJourneyCommand = (
             'POST',
             '/v1/query/conversion_after',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               from,
               to,
               within: options.within,
@@ -159,7 +160,7 @@ export const registerOnboardingJourneyCommand = (
             'POST',
             '/v1/query/timeseries',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               metric: 'unique_users',
               event: eventName,
               interval: trendInterval,
@@ -184,7 +185,7 @@ export const registerOnboardingJourneyCommand = (
         };
 
         const schemaQuery = new URLSearchParams({
-          projectId: options.project,
+          projectId,
           limit: String(Number(options.eventsLimit)),
           includeDebug: String(includeDebugFlag()),
         });
@@ -315,7 +316,7 @@ export const registerOnboardingJourneyCommand = (
           });
 
         const payload = {
-          projectId: options.project,
+          projectId,
           within: options.within,
           last: options.last,
           startEvent: ONBOARDING_START_EVENT,

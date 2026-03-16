@@ -28,7 +28,7 @@ type FlowSelectionOptions = {
 };
 
 type RootQueryOptions = FlowSelectionOptions & {
-  project: string;
+  project?: string;
   last: string;
 };
 
@@ -36,11 +36,11 @@ export const registerCoreQueryCommands = (
   program: Command,
   context: CliCommandContext,
 ): void => {
-  const { withErrorHandling, getRootOptions, includeDebugFlag } = context;
+  const { withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
 
   program
     .command('funnel')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--steps <steps>', 'Comma-separated event steps')
     .option('--within <scope>', 'session|user', 'session')
     .option('--last <duration>', 'Time range like 7d', '7d')
@@ -53,6 +53,7 @@ export const registerCoreQueryCommands = (
     .action(async (options: RootQueryOptions & { steps: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const steps = String(options.steps)
           .split(',')
           .map((step) => step.trim())
@@ -62,7 +63,7 @@ export const registerCoreQueryCommands = (
           'POST',
           '/v1/query/funnel',
           {
-            ...resolveProjectOption(options.project),
+            ...resolveProjectOption(projectId),
             steps,
             within: options.within,
             last: options.last,
@@ -80,7 +81,7 @@ export const registerCoreQueryCommands = (
 
   program
     .command('conversion-after')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--from <event>', 'From event name')
     .requiredOption('--to <event>', 'To event name')
     .option('--within <scope>', 'session|user', 'session')
@@ -94,11 +95,12 @@ export const registerCoreQueryCommands = (
     .action(async (options: RootQueryOptions & { from: string; to: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const payload = await requestApi(
           'POST',
           '/v1/query/conversion_after',
           {
-            ...resolveProjectOption(options.project),
+            ...resolveProjectOption(projectId),
             from: options.from,
             to: options.to,
             within: options.within,
@@ -120,7 +122,7 @@ export const registerCoreQueryCommands = (
     .description(
       'Convenience query for completion style questions, e.g. onboarding start -> onboarding complete',
     )
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--start <event>', 'Start event (e.g. onboarding:start)')
     .requiredOption('--complete <event>', 'Completion event (e.g. onboarding:complete)')
     .option('--within <scope>', 'session|user', 'session')
@@ -134,11 +136,12 @@ export const registerCoreQueryCommands = (
     .action(async (options: RootQueryOptions & { start: string; complete: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const payload = (await requestApi(
           'POST',
           '/v1/query/conversion_after',
           {
-            ...resolveProjectOption(options.project),
+            ...resolveProjectOption(projectId),
             from: options.start,
             to: options.complete,
             within: options.within,
@@ -175,7 +178,7 @@ export const registerCoreQueryCommands = (
 
   program
     .command('paths-after')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--from <event>', 'Anchor event')
     .option('--top <n>', 'Top N next events', '20')
     .option('--within <scope>', 'session|user', 'session')
@@ -189,11 +192,12 @@ export const registerCoreQueryCommands = (
     .action(async (options: RootQueryOptions & { from: string; top: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        const projectId = await resolveProjectId(options.project);
         const payload = await requestApi(
           'POST',
           '/v1/query/paths_after',
           {
-            ...resolveProjectOption(options.project),
+            ...resolveProjectOption(projectId),
             from: options.from,
             top: Number(options.top),
             within: options.within,
@@ -212,7 +216,7 @@ export const registerCoreQueryCommands = (
 
   program
     .command('timeseries')
-    .requiredOption('--project <id>', 'Project ID')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
     .requiredOption('--metric <metric>', 'event_count|unique_sessions|unique_users')
     .option('--event <name>', 'Optional event filter')
     .option('--interval <value>', '1h|1d', '1h')
@@ -239,11 +243,12 @@ export const registerCoreQueryCommands = (
       ) => {
         await withErrorHandling(async () => {
           const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
           const payload = (await requestApi(
             'POST',
             '/v1/query/timeseries',
             {
-              ...resolveProjectOption(options.project),
+              ...resolveProjectOption(projectId),
               metric: options.metric,
               event: options.event,
               interval: options.interval,

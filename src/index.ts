@@ -16,6 +16,7 @@ import {
   SELF_TRACKING_ENDPOINT,
   env,
 } from './constants.js';
+import { resolveProjectId as resolveProjectIdWithFallback } from './project-selection.js';
 import { maybeAutoRefreshSkills } from './setup.js';
 
 let activeCommandPath = 'unknown';
@@ -106,18 +107,31 @@ program
   .description('Agent-friendly AnalyticsCLI CLI')
   .option('--api-url <url>', 'API base URL')
   .option('--token <token>', 'Override auth token for this call')
+  .option('--project <id>', 'Default project ID for this command invocation')
   .option('--format <format>', 'Output format json|text', 'json')
   .option('--include-debug', 'Include development/debug events in query/export commands', false)
   .option('--quiet', 'Reduce text output noise', false);
 
 const getRootOptions = (): RootCliOptions => program.opts<RootCliOptions>();
 const includeDebugFlag = (): boolean => Boolean(getRootOptions().includeDebug);
+const resolveProjectId = async (projectOption?: string): Promise<string> => {
+  const root = getRootOptions();
+  const resolved = await resolveProjectIdWithFallback({
+    explicitProjectId: projectOption,
+    rootProjectId: root.project,
+    apiUrl: root.apiUrl,
+    token: root.token,
+    allowInteractiveSelection: true,
+  });
+  return resolved.projectId;
+};
 
 const context: CliCommandContext = {
   program,
   withErrorHandling,
   getRootOptions,
   includeDebugFlag,
+  resolveProjectId,
 };
 
 program.hook('preAction', async (_thisCommand, actionCommand) => {
