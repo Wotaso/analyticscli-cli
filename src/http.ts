@@ -128,7 +128,12 @@ export const requestCollect = async (
 export const exchangeClerkJwtForReadonlyToken = async (
   apiUrl: string,
   clerkJwt: string,
-): Promise<{ token: string; tenantId?: unknown; projectIds?: unknown }> => {
+): Promise<{
+  token: string;
+  tenantId?: unknown;
+  projectIds?: unknown;
+  analyticsDataResidency?: unknown;
+}> => {
   const response = await fetch(`${apiUrl}/v1/auth/exchange-clerk`, {
     method: 'POST',
     headers: {
@@ -153,6 +158,7 @@ export const exchangeClerkJwtForReadonlyToken = async (
     token: payload.token,
     tenantId: payload.tenantId,
     projectIds: payload.projectIds,
+    analyticsDataResidency: payload.analyticsDataResidency,
   };
 };
 
