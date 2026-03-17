@@ -17,7 +17,7 @@ import {
   env,
 } from './constants.js';
 import { resolveProjectId as resolveProjectIdWithFallback } from './project-selection.js';
-import { maybeAutoRefreshSkills } from './setup.js';
+import { maybeAutoRefreshSkills, maybeNotifyCliUpdate } from './setup.js';
 
 let activeCommandPath = 'unknown';
 let activeCommandStartMs = Date.now();
@@ -137,8 +137,16 @@ const context: CliCommandContext = {
 program.hook('preAction', async (_thisCommand, actionCommand) => {
   activeCommandPath = resolveCommandPath(actionCommand);
   activeCommandStartMs = Date.now();
+  const root = getRootOptions();
   await maybeAutoRefreshSkills(activeCommandPath).catch(() => {
     // Auto-refresh is best effort.
+  });
+  await maybeNotifyCliUpdate({
+    commandPath: activeCommandPath,
+    format: root.format,
+    quiet: root.quiet,
+  }).catch(() => {
+    // Update check is best effort.
   });
   await emitSelfTrackingEvent('cli:command_started', {
     command: activeCommandPath,

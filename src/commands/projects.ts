@@ -1,6 +1,7 @@
 import { print } from '../analytics-utils.js';
 import { CLI_WRITE_COMMANDS_ENABLED } from '../constants.js';
 import { persistAuthToken, readConfig } from '../config-store.js';
+import { noEventsFoundMessage, noProjectsFoundMessage } from '../dx-messages.js';
 import { requestApi } from '../http.js';
 import { fetchProjectOptions, promptProjectSelection, setSelectedProjectId } from '../project-selection.js';
 import type { CliCommandContext } from './context.js';
@@ -16,6 +17,27 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
     .action(async () => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
+        if (root.format === 'text') {
+          const projectsInScope = await fetchProjectOptions({
+            apiUrl: root.apiUrl,
+            token: root.token,
+          });
+
+          if (projectsInScope.length === 0) {
+            print('text', noProjectsFoundMessage());
+            return;
+          }
+
+          const lines = [
+            `Projects in scope: ${projectsInScope.length}`,
+            ...projectsInScope.map((project) => `- ${project.label}`),
+            '',
+            'Next step: set a default project with `analyticscli projects select`.',
+          ];
+          print('text', lines.join('\n'));
+          return;
+        }
+
         const payload = await requestApi('GET', '/v1/projects', undefined, {
           apiUrl: root.apiUrl,
           token: root.token,
@@ -55,7 +77,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
           token: root.token,
         });
         if (projectsInScope.length === 0) {
-          throw Object.assign(new Error('No accessible projects found for this token.'), {
+          throw Object.assign(new Error(noProjectsFoundMessage()), {
             exitCode: 3,
           });
         }
@@ -155,6 +177,38 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
           apiUrl: root.apiUrl,
           token: root.token,
         });
+
+        if (root.format === 'text') {
+          let items: unknown[] = [];
+          if (Array.isArray(payload)) {
+            items = payload;
+          } else if (payload && typeof payload === 'object') {
+            const typedPayload = payload as {
+              items?: unknown;
+              events?: unknown;
+              data?: unknown;
+            };
+            if (Array.isArray(typedPayload.items)) {
+              items = typedPayload.items;
+            } else if (Array.isArray(typedPayload.events)) {
+              items = typedPayload.events;
+            } else if (Array.isArray(typedPayload.data)) {
+              items = typedPayload.data;
+            }
+          }
+
+          if (items.length === 0) {
+            print(
+              'text',
+              noEventsFoundMessage({
+                projectId,
+                last: options.last,
+              }),
+            );
+            return;
+          }
+        }
+
         print(root.format, payload);
       });
     });

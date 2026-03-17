@@ -7,6 +7,7 @@ import {
   resolveFlowSelectorOption,
   resolveProjectOption,
 } from '../../analytics-utils.js';
+import { noEventsFoundMessage } from '../../dx-messages.js';
 import { requestApi } from '../../http.js';
 import {
   renderHorizontalBars,
@@ -269,6 +270,17 @@ export const registerCoreQueryCommands = (
           const vizMode = String(options.viz ?? 'none');
           const points = asTimeseriesPoints(payload);
           const trend = options.trend ? computeTrendFromTimeseriesPoints(points) : null;
+          if ((vizMode === 'table' || vizMode === 'chart') && points.length === 0) {
+            print(
+              'text',
+              noEventsFoundMessage({
+                projectId,
+                last: options.last,
+              }),
+            );
+            return;
+          }
+
           if (vizMode === 'table') {
             const table = renderTable(
               ['timestamp', 'value'],

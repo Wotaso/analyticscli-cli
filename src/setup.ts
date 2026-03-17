@@ -1,6 +1,11 @@
+import { createInterface } from 'node:readline/promises';
 import {
   CLAWHUB_SITE_URL,
-  ANALYTICSCLI_AGENT_SKILL_NAMES,
+  ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES,
+  ANALYTICSCLI_SETUP_SKILL_NAMES,
+  CLI_VERSION,
+  CLI_VERSION_CHECK_INTERVAL_MS,
+  CLI_VERSION_CHECK_TIMEOUT_MS,
   SKILL_SYNC_INTERVAL_MS,
   SKILL_SYNC_TIMEOUT_MS,
   SKILLS_PUBLIC_REPO_SLUG,
@@ -9,6 +14,7 @@ import { configPath, persistAuthToken, readConfig, resolveAuthToken, writeConfig
 import { exchangeClerkJwtForReadonlyToken } from './http.js';
 import { isCommandAvailable, runCommand } from './shell.js';
 import type {
+  OutputFormat,
   PromptClient,
   SetupAgent,
   SetupExecutionOptions,
@@ -108,7 +114,7 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
         detail: '`npx` not available on this machine.',
       });
     } else {
-      const installs = ANALYTICSCLI_AGENT_SKILL_NAMES.map((skillName) => {
+      const installs = ANALYTICSCLI_SETUP_SKILL_NAMES.map((skillName) => {
         const install = runCodexClaudeSkillInstall(skillName);
         return {
           name: skillName,
@@ -140,7 +146,7 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
         detail: `Neither \`clawhub\` nor \`npx\` is available. Install ClawHub first or use ${CLAWHUB_SITE_URL}.`,
       });
     } else {
-      const installs = ANALYTICSCLI_AGENT_SKILL_NAMES.map((skillName) => {
+      const installs = ANALYTICSCLI_SETUP_SKILL_NAMES.map((skillName) => {
         const install = runCommand(invoker.command, [...invoker.prefix, 'install', skillName], {
           timeoutMs: 120_000,
         });
@@ -240,6 +246,7 @@ export const runSetupFlow = async (
     skillAutoUpdate: autoSkillUpdateEnabled,
     setupCompletedAt: activeConfig.setupCompletedAt ?? now,
     lastSkillSyncAt: options.skipSkills ? activeConfig.lastSkillSyncAt : now,
+    lastSeenCliVersion: CLI_VERSION,
     updatedAt: now,
   };
   await writeConfigValue(finalConfig);
@@ -320,34 +327,318 @@ export const promptLoginMode = async (
   }
 };
 
+type ParsedSemver = {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease: string[];
+};
+
+const parseSemver = (version: string): ParsedSemver | null => {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(version.trim());
+  if (!match) {
+    return null;
+  }
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] ? match[4].split('.') : [],
+  };
+};
+
+const comparePrereleaseIdentifier = (left: string, right: string): number => {
+  const leftIsNumeric = /^\d+$/.test(left);
+  const rightIsNumeric = /^\d+$/.test(right);
+  if (leftIsNumeric && rightIsNumeric) {
+    return Number(left) - Number(right);
+  }
+  if (leftIsNumeric) {
+    return -1;
+  }
+  if (rightIsNumeric) {
+    return 1;
+  }
+  return left.localeCompare(right);
+};
+
+const compareSemver = (left: string, right: string): number => {
+  const parsedLeft = parseSemver(left);
+  const parsedRight = parseSemver(right);
+  if (!parsedLeft || !parsedRight) {
+    return 0;
+  }
+
+  if (parsedLeft.major !== parsedRight.major) return parsedLeft.major - parsedRight.major;
+  if (parsedLeft.minor !== parsedRight.minor) return parsedLeft.minor - parsedRight.minor;
+  if (parsedLeft.patch !== parsedRight.patch) return parsedLeft.patch - parsedRight.patch;
+
+  const leftPre = parsedLeft.prerelease;
+  const rightPre = parsedRight.prerelease;
+  if (leftPre.length === 0 && rightPre.length === 0) return 0;
+  if (leftPre.length === 0) return 1;
+  if (rightPre.length === 0) return -1;
+
+  const length = Math.max(leftPre.length, rightPre.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftPre[index];
+    const rightPart = rightPre[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+
+    const cmp = comparePrereleaseIdentifier(leftPart, rightPart);
+    if (cmp !== 0) return cmp;
+  }
+
+  return 0;
+};
+
+const isVersionNewer = (candidate: string, current: string): boolean => compareSemver(candidate, current) > 0;
+
+const fetchLatestCliVersion = async (): Promise<string | undefined> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, CLI_VERSION_CHECK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch('https://registry.npmjs.org/@analyticscli%2fcli', {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const payload = (await response.json()) as {
+      'dist-tags'?: Record<string, unknown>;
+    };
+    const tags = payload['dist-tags'];
+    if (!tags || typeof tags !== 'object') {
+      return undefined;
+    }
+
+    const preferredTag = CLI_VERSION.includes('-') ? 'preview' : 'latest';
+    const preferred = typeof tags[preferredTag] === 'string' ? tags[preferredTag] : undefined;
+    const latest = typeof tags.latest === 'string' ? tags.latest : undefined;
+    return preferred ?? latest;
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const refreshSkills = (skillNames: readonly string[], timeoutMs: number): void => {
+  if (isCommandAvailable('npx')) {
+    for (const skillName of skillNames) {
+      runCodexClaudeSkillInstall(skillName, timeoutMs);
+    }
+  }
+
+  for (const skillName of skillNames) {
+    runClawHubCommand(['update', skillName], timeoutMs);
+  }
+};
+
+const resolveCliInstallHint = (): string =>
+  CLI_VERSION.includes('-')
+    ? 'npm install -g @analyticscli/cli@preview'
+    : 'npm install -g @analyticscli/cli';
+
+const runCliSelfUpdate = (): { ok: boolean; detail?: string } => {
+  if (!isCommandAvailable('npm')) {
+    return {
+      ok: false,
+      detail: '`npm` is not available in your PATH.',
+    };
+  }
+
+  const packageSpecifier = CLI_VERSION.includes('-') ? '@analyticscli/cli@preview' : '@analyticscli/cli';
+  const result = runCommand('npm', ['install', '-g', packageSpecifier], {
+    timeoutMs: 120_000,
+  });
+  if (result.ok) {
+    return { ok: true };
+  }
+
+  const detail = result.stderr.trim() || result.stdout.trim();
+  return {
+    ok: false,
+    detail: detail || `exit code ${result.code ?? 'unknown'}`,
+  };
+};
+
+const promptCliUpdateDecision = async (): Promise<'yes' | 'later' | 'never'> => {
+  if (!process.stdin.isTTY || !process.stderr.isTTY) {
+    return 'later';
+  }
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    while (true) {
+      const answer = (
+        await rl.question('Update now? [y]es / [n]ot now / [a]lways skip: ')
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!answer || answer === 'n' || answer === 'no') {
+        return 'later';
+      }
+      if (answer === 'y' || answer === 'yes') {
+        return 'yes';
+      }
+      if (
+        answer === 'a' ||
+        answer === 'never' ||
+        answer === 'not-ask-again' ||
+        answer === 'notaskagain'
+      ) {
+        return 'never';
+      }
+
+      process.stderr.write('Please answer with y, n, or a.\n');
+    }
+  } finally {
+    rl.close();
+  }
+};
+
 export const maybeAutoRefreshSkills = async (commandPath: string): Promise<void> => {
   if (commandPath === 'setup' || commandPath === 'onboard') {
     return;
   }
 
   const config = await readConfig();
-  if (!config.skillAutoUpdate) {
-    return;
-  }
+  const now = new Date().toISOString();
+  const nowMs = Date.now();
+  const hasSetup = Boolean(config.setupCompletedAt);
+  const hasCliVersionChanged = config.lastSeenCliVersion !== CLI_VERSION;
+  const shouldRefreshOnCliUpgrade = hasSetup && hasCliVersionChanged;
 
   const lastSyncAtMs = config.lastSkillSyncAt ? Date.parse(config.lastSkillSyncAt) : 0;
-  if (Number.isFinite(lastSyncAtMs) && Date.now() - lastSyncAtMs < SKILL_SYNC_INTERVAL_MS) {
+  const shouldRefreshPeriodically =
+    Boolean(config.skillAutoUpdate) &&
+    (!Number.isFinite(lastSyncAtMs) || nowMs - lastSyncAtMs >= SKILL_SYNC_INTERVAL_MS);
+
+  let didRefresh = false;
+  if (shouldRefreshOnCliUpgrade || shouldRefreshPeriodically) {
+    refreshSkills(ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES, SKILL_SYNC_TIMEOUT_MS);
+    didRefresh = true;
+  }
+
+  if (!hasCliVersionChanged && !didRefresh) {
     return;
-  }
-
-  if (isCommandAvailable('npx')) {
-    for (const skillName of ANALYTICSCLI_AGENT_SKILL_NAMES) {
-      runCodexClaudeSkillInstall(skillName, SKILL_SYNC_TIMEOUT_MS);
-    }
-  }
-
-  for (const skillName of ANALYTICSCLI_AGENT_SKILL_NAMES) {
-    runClawHubCommand(['update', skillName], SKILL_SYNC_TIMEOUT_MS);
   }
 
   await writeConfigValue({
     ...config,
-    lastSkillSyncAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    lastSeenCliVersion: CLI_VERSION,
+    ...(didRefresh ? { lastSkillSyncAt: now } : {}),
+    updatedAt: now,
   });
+};
+
+export const maybeNotifyCliUpdate = async (input: {
+  commandPath: string;
+  format: OutputFormat;
+  quiet?: boolean;
+}): Promise<void> => {
+  if (input.commandPath === 'setup' || input.commandPath === 'onboard') {
+    return;
+  }
+
+  const config = await readConfig();
+  const nowMs = Date.now();
+  const lastCheckedMs = config.lastCliVersionCheckAt ? Date.parse(config.lastCliVersionCheckAt) : 0;
+  if (Number.isFinite(lastCheckedMs) && nowMs - lastCheckedMs < CLI_VERSION_CHECK_INTERVAL_MS) {
+    return;
+  }
+
+  const latestVersion = await fetchLatestCliVersion();
+  const now = new Date(nowMs).toISOString();
+  const baseConfig = {
+    ...config,
+    lastCliVersionCheckAt: now,
+    updatedAt: now,
+  };
+
+  if (latestVersion && isVersionNewer(latestVersion, CLI_VERSION)) {
+    if (config.suppressedCliUpdateVersion === latestVersion) {
+      await writeConfigValue(baseConfig);
+      return;
+    }
+
+    const installHint = resolveCliInstallHint();
+    const updateMessage = `A newer AnalyticsCLI CLI version is available (${latestVersion}; current ${CLI_VERSION}).`;
+    const canPromptInteractively =
+      input.format === 'text' &&
+      !input.quiet &&
+      process.stdin.isTTY &&
+      process.stderr.isTTY;
+
+    if (canPromptInteractively) {
+      process.stderr.write(`${updateMessage}\n`);
+      const decision = await promptCliUpdateDecision();
+      if (decision === 'never') {
+        await writeConfigValue({
+          ...baseConfig,
+          suppressedCliUpdateVersion: latestVersion,
+        });
+        return;
+      }
+
+      if (decision === 'yes') {
+        const updateResult = runCliSelfUpdate();
+        if (updateResult.ok) {
+          process.stderr.write('CLI updated successfully. Re-run your command to use the new version.\n');
+        } else {
+          process.stderr.write(`Automatic update failed. Run manually: ${installHint}\n`);
+          if (updateResult.detail) {
+            process.stderr.write(`${updateResult.detail}\n`);
+          }
+        }
+
+        await writeConfigValue({
+          ...baseConfig,
+          lastCliVersionNotified: latestVersion,
+        });
+        return;
+      }
+
+      await writeConfigValue(baseConfig);
+      return;
+    }
+
+    if (input.format === 'text' && !input.quiet && config.lastCliVersionNotified !== latestVersion) {
+      process.stderr.write(`${updateMessage} Update with: ${installHint}\n`);
+      await writeConfigValue({
+        ...baseConfig,
+        lastCliVersionNotified: latestVersion,
+      });
+      return;
+    }
+
+    await writeConfigValue(baseConfig);
+    return;
+  }
+
+  if (latestVersion && !isVersionNewer(latestVersion, CLI_VERSION) && config.lastCliVersionNotified) {
+    await writeConfigValue({
+      ...baseConfig,
+      lastCliVersionNotified: undefined,
+    });
+    return;
+  }
+
+  await writeConfigValue(baseConfig);
 };

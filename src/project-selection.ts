@@ -1,5 +1,6 @@
 import { emitKeypressEvents } from 'node:readline';
 import { readConfig, writeConfigValue } from './config-store.js';
+import { noProjectsFoundMessage } from './dx-messages.js';
 import { requestApi } from './http.js';
 import type { ClientOptions } from './types.js';
 
@@ -99,7 +100,7 @@ export const promptProjectSelection = async (
   }
 
   if (projects.length === 0) {
-    throw Object.assign(new Error('No projects available for selection.'), { exitCode: 2 });
+    throw Object.assign(new Error(noProjectsFoundMessage()), { exitCode: 2 });
   }
 
   const stdin = process.stdin;
@@ -251,7 +252,7 @@ export const resolveProjectId = async (input: {
   });
   if (projects.length === 0) {
     throw Object.assign(
-      new Error('No accessible projects found for this token.'),
+      new Error(noProjectsFoundMessage()),
       { exitCode: 3 },
     );
   }

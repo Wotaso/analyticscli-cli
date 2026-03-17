@@ -67,6 +67,21 @@ analyticscli timeseries --project <project_id> --metric event_count --interval 1
 analyticscli generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
 ```
 
+## Troubleshooting Empty States
+
+No projects listed (`analyticscli projects list` returns empty):
+
+1. Create your first project in [dash.analyticscli.com](https://dash.analyticscli.com).
+2. Run `analyticscli projects list`.
+3. Set a default with `analyticscli projects select`.
+
+Project exists but no events yet (`analyticscli schema events --project <project_id>` returns empty):
+
+1. Integrate `@analyticscli/sdk` in your app codebase.
+2. Initialize SDK with your project publishable API key from **Dashboard -> API Keys**.
+3. Emit at least one event from the app.
+4. Re-run `analyticscli schema events --project <project_id> --last 14d`.
+
 ## Common Commands
 
 ### Core analytics
@@ -128,6 +143,13 @@ Global options available on all commands:
 - `readonly_token` is for query/export usage.
 - It is different from SDK write keys used for event ingestion.
 - `analyticscli setup` and `analyticscli onboard` can also install public skills (`analyticscli-cli`, `analyticscli-ts-sdk`).
+
+## Auto Maintenance
+
+- CLI startup checks for newer CLI versions once per day and shows an update hint in text mode.
+- In interactive terminals, the update prompt supports `y` (update now), `n` (ask later), and `a` (skip this offered version).
+- When the CLI binary version changes, the CLI auto-refreshes the `analyticscli-cli` skill.
+- Automatic refresh intentionally does **not** force-update the `analyticscli-ts-sdk` skill, because SDK versions in app codebases can lag intentionally.
 
 ## Releases
 

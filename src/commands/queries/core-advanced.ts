@@ -9,6 +9,7 @@ import {
   resolveProjectOption,
 } from '../../analytics-utils.js';
 import { ONBOARDING_START_EVENT } from '../../constants.js';
+import { noEventsFoundMessage } from '../../dx-messages.js';
 import { requestApi } from '../../http.js';
 import { renderTable } from '../../render.js';
 import type { CliCommandContext } from '../context.js';
@@ -235,7 +236,19 @@ export const registerAdvancedQueryCommands = (
             ].join('\n');
 
             if (payload.rows.length === 0) {
-              print('text', `${summary}\n\nNo rows found for the selected range/filters.`);
+              print(
+                'text',
+                [
+                  summary,
+                  '',
+                  'No rows found for the selected range/filters.',
+                  '',
+                  noEventsFoundMessage({
+                    projectId,
+                    last: options.last,
+                  }),
+                ].join('\n'),
+              );
               return;
             }
 
@@ -443,7 +456,16 @@ export const registerAdvancedQueryCommands = (
             }
 
             if (payload.questions.length === 0) {
-              blocks.push('No survey responses found for the selected window/filters.');
+              blocks.push(
+                [
+                  'No survey responses found for the selected window/filters.',
+                  '',
+                  noEventsFoundMessage({
+                    projectId,
+                    last: options.last,
+                  }),
+                ].join('\n'),
+              );
             }
 
             print('text', blocks.join('\n\n'));

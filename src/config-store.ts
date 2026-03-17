@@ -19,6 +19,16 @@ export const readConfig = async (): Promise<CliConfig> => {
   try {
     const raw = await readFile(configPath, 'utf8');
     const parsed = JSON.parse(raw) as Partial<CliConfig>;
+    const legacySuppressCliUpdatePrompt =
+      typeof (parsed as { suppressCliUpdatePrompt?: unknown }).suppressCliUpdatePrompt === 'boolean'
+        ? Boolean((parsed as { suppressCliUpdatePrompt?: boolean }).suppressCliUpdatePrompt)
+        : false;
+    const suppressedCliUpdateVersion =
+      typeof parsed.suppressedCliUpdateVersion === 'string'
+        ? parsed.suppressedCliUpdateVersion
+        : legacySuppressCliUpdatePrompt && typeof parsed.lastCliVersionNotified === 'string'
+          ? parsed.lastCliVersionNotified
+          : undefined;
     return {
       apiUrl: typeof parsed.apiUrl === 'string' ? parsed.apiUrl : env.ANALYTICSCLI_API_URL,
       token: typeof parsed.token === 'string' ? parsed.token : undefined,
@@ -30,6 +40,13 @@ export const readConfig = async (): Promise<CliConfig> => {
         typeof parsed.selectedProjectId === 'string' ? parsed.selectedProjectId : undefined,
       skillAutoUpdate: typeof parsed.skillAutoUpdate === 'boolean' ? parsed.skillAutoUpdate : false,
       lastSkillSyncAt: typeof parsed.lastSkillSyncAt === 'string' ? parsed.lastSkillSyncAt : undefined,
+      lastSeenCliVersion:
+        typeof parsed.lastSeenCliVersion === 'string' ? parsed.lastSeenCliVersion : undefined,
+      lastCliVersionCheckAt:
+        typeof parsed.lastCliVersionCheckAt === 'string' ? parsed.lastCliVersionCheckAt : undefined,
+      lastCliVersionNotified:
+        typeof parsed.lastCliVersionNotified === 'string' ? parsed.lastCliVersionNotified : undefined,
+      suppressedCliUpdateVersion,
       setupCompletedAt: typeof parsed.setupCompletedAt === 'string' ? parsed.setupCompletedAt : undefined,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
     };

@@ -5,6 +5,10 @@ export type CliConfig = {
   selectedProjectId?: string;
   skillAutoUpdate?: boolean;
   lastSkillSyncAt?: string;
+  lastSeenCliVersion?: string;
+  lastCliVersionCheckAt?: string;
+  lastCliVersionNotified?: string;
+  suppressedCliUpdateVersion?: string;
   setupCompletedAt?: string;
   updatedAt: string;
 };
