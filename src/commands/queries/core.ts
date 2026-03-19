@@ -26,6 +26,14 @@ type FlowSelectionOptions = {
   variant?: string;
   paywallId?: string;
   source?: string;
+  projectSurface?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  referrer?: string;
+  landingPath?: string;
 };
 
 type RootQueryOptions = FlowSelectionOptions & {
@@ -51,6 +59,14 @@ export const registerCoreQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(async (options: RootQueryOptions & { steps: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
@@ -93,6 +109,14 @@ export const registerCoreQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(async (options: RootQueryOptions & { from: string; to: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
@@ -134,6 +158,14 @@ export const registerCoreQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(async (options: RootQueryOptions & { start: string; complete: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
@@ -190,6 +222,14 @@ export const registerCoreQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(async (options: RootQueryOptions & { from: string; top: string; within: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
@@ -231,6 +271,14 @@ export const registerCoreQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(
       async (
         options: RootQueryOptions & {

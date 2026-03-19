@@ -46,35 +46,46 @@ const emitSelfTrackingEvent = async (
   }
 
   try {
-    await fetch(`${SELF_TRACKING_ENDPOINT}/v1/collect`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': String(env.ANALYTICSCLI_SELF_TRACKING_API_KEY),
-      },
-      body: JSON.stringify({
-        projectId: String(env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID),
-        sentAt: new Date().toISOString(),
-        events: [
-          {
-            eventId: `${eventName}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-            eventName,
-            ts: new Date().toISOString(),
-            sessionId: CLI_SESSION_ID,
-            anonId: CLI_ANON_ID,
-            properties: {
-              ...properties,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 1200);
+    try {
+      await fetch(`${SELF_TRACKING_ENDPOINT}/v1/collect`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': String(env.ANALYTICSCLI_SELF_TRACKING_API_KEY),
+        },
+        keepalive: true,
+        signal: controller.signal,
+        body: JSON.stringify({
+          projectId: String(env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID),
+          sentAt: new Date().toISOString(),
+          events: [
+            {
+              eventId: `${eventName}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+              eventName,
+              ts: new Date().toISOString(),
+              sessionId: CLI_SESSION_ID,
+              anonId: CLI_ANON_ID,
+              properties: {
+                ...properties,
+                platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
+                nodeVersion: process.version,
+                cliVersion: CLI_VERSION,
+              },
               platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
-              nodeVersion: process.version,
-              cliVersion: CLI_VERSION,
+              projectSurface: 'cli',
+              appVersion: CLI_VERSION,
+              type: 'track',
             },
-            platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
-            appVersion: CLI_VERSION,
-            type: 'track',
-          },
-        ],
-      }),
-    });
+          ],
+        }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   } catch {
     // Self-tracking must never break CLI behavior.
   }
@@ -169,8 +180,12 @@ if (CLI_DEV_COMMANDS_ENABLED) {
   registerDevCommands(context);
 }
 
-program.parseAsync(process.argv).catch((error) => {
+program.parseAsync(process.argv).catch(async (error) => {
   const typed = error as Error;
+  await emitSelfTrackingEvent('cli:parse_failed', {
+    command: activeCommandPath,
+    durationMs: Date.now() - activeCommandStartMs,
+  });
   process.stderr.write(`${JSON.stringify({ error: { message: typed.message } })}\n`);
   process.exitCode = 4;
 });

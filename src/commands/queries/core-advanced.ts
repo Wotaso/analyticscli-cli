@@ -21,6 +21,14 @@ type FlowSelectionOptions = {
   variant?: string;
   paywallId?: string;
   source?: string;
+  projectSurface?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  referrer?: string;
+  landingPath?: string;
 };
 
 type RootQueryOptions = FlowSelectionOptions & {
@@ -32,7 +40,15 @@ const GENERIC_METRICS = ['event_count', 'unique_sessions', 'unique_users'] as co
 const GENERIC_DIMENSIONS = [
   'eventName',
   'platform',
+  'projectSurface',
   'appVersion',
+  'utmSource',
+  'utmMedium',
+  'utmCampaign',
+  'utmTerm',
+  'utmContent',
+  'referrer',
+  'landingPath',
   'country',
   'region',
   'city',
@@ -134,7 +150,15 @@ export const registerAdvancedQueryCommands = (
     .option('--group-by <list>', `Comma-separated dimensions: ${GENERIC_DIMENSIONS.join(',')}`)
     .option('--events <list>', 'Optional event-name filters, comma-separated')
     .option('--platforms <list>', 'Optional platform filters, comma-separated')
+    .option('--project-surfaces <list>', 'Optional projectSurface filters, comma-separated')
     .option('--app-versions <list>', 'Optional appVersion filters, comma-separated')
+    .option('--utm-sources <list>', 'Optional utm_source filters, comma-separated')
+    .option('--utm-mediums <list>', 'Optional utm_medium filters, comma-separated')
+    .option('--utm-campaigns <list>', 'Optional utm_campaign filters, comma-separated')
+    .option('--utm-terms <list>', 'Optional utm_term filters, comma-separated')
+    .option('--utm-contents <list>', 'Optional utm_content filters, comma-separated')
+    .option('--referrers <list>', 'Optional referrer filters, comma-separated')
+    .option('--landing-paths <list>', 'Optional landing_path filters, comma-separated')
     .option('--countries <list>', 'Optional country filters, comma-separated')
     .option('--runtime-envs <list>', `Optional runtimeEnv filters: ${GENERIC_RUNTIME_ENVS.join(',')}`)
     .option('--limit <n>', 'Row limit (policy capped at 200)', '100')
@@ -148,6 +172,14 @@ export const registerAdvancedQueryCommands = (
     .option('--variant <name>', 'Flow selector: experimentVariant')
     .option('--paywall-id <id>', 'Flow selector: paywallId')
     .option('--source <name>', 'Flow selector: properties.source')
+    .option('--project-surface <name>', 'Flow selector: projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Flow selector: properties.utm_source')
+    .option('--utm-medium <value>', 'Flow selector: properties.utm_medium')
+    .option('--utm-campaign <value>', 'Flow selector: properties.utm_campaign')
+    .option('--utm-term <value>', 'Flow selector: properties.utm_term')
+    .option('--utm-content <value>', 'Flow selector: properties.utm_content')
+    .option('--referrer <value>', 'Flow selector: properties.referrer')
+    .option('--landing-path <value>', 'Flow selector: properties.landing_path')
     .action(
       async (
         options: RootQueryOptions & {
@@ -155,7 +187,15 @@ export const registerAdvancedQueryCommands = (
           groupBy?: string;
           events?: string;
           platforms?: string;
+          projectSurfaces?: string;
           appVersions?: string;
+          utmSources?: string;
+          utmMediums?: string;
+          utmCampaigns?: string;
+          utmTerms?: string;
+          utmContents?: string;
+          referrers?: string;
+          landingPaths?: string;
           countries?: string;
           runtimeEnvs?: string;
           limit: string;
@@ -175,19 +215,51 @@ export const registerAdvancedQueryCommands = (
 
           const eventNames = parseCsvOption(options.events, '--events', { maxItems: 50 });
           const platforms = parseCsvOption(options.platforms, '--platforms', { maxItems: 20 });
+          const projectSurfaces = parseCsvOption(options.projectSurfaces, '--project-surfaces', {
+            maxItems: 20,
+          });
           const appVersions = parseCsvOption(options.appVersions, '--app-versions', { maxItems: 20 });
+          const utmSources = parseCsvOption(options.utmSources, '--utm-sources', { maxItems: 20 });
+          const utmMediums = parseCsvOption(options.utmMediums, '--utm-mediums', { maxItems: 20 });
+          const utmCampaigns = parseCsvOption(options.utmCampaigns, '--utm-campaigns', {
+            maxItems: 20,
+          });
+          const utmTerms = parseCsvOption(options.utmTerms, '--utm-terms', { maxItems: 20 });
+          const utmContents = parseCsvOption(options.utmContents, '--utm-contents', {
+            maxItems: 20,
+          });
+          const referrers = parseCsvOption(options.referrers, '--referrers', { maxItems: 20 });
+          const landingPaths = parseCsvOption(options.landingPaths, '--landing-paths', {
+            maxItems: 20,
+          });
           const countries = parseCsvOption(options.countries, '--countries', { maxItems: 50 });
 
           const filters: {
             eventNames?: string[];
             platforms?: string[];
+            projectSurfaces?: string[];
             appVersions?: string[];
+            utmSources?: string[];
+            utmMediums?: string[];
+            utmCampaigns?: string[];
+            utmTerms?: string[];
+            utmContents?: string[];
+            referrers?: string[];
+            landingPaths?: string[];
             countries?: string[];
             runtimeEnvs?: string[];
           } = {};
           if (eventNames.length > 0) filters.eventNames = eventNames;
           if (platforms.length > 0) filters.platforms = platforms;
+          if (projectSurfaces.length > 0) filters.projectSurfaces = projectSurfaces;
           if (appVersions.length > 0) filters.appVersions = appVersions;
+          if (utmSources.length > 0) filters.utmSources = utmSources;
+          if (utmMediums.length > 0) filters.utmMediums = utmMediums;
+          if (utmCampaigns.length > 0) filters.utmCampaigns = utmCampaigns;
+          if (utmTerms.length > 0) filters.utmTerms = utmTerms;
+          if (utmContents.length > 0) filters.utmContents = utmContents;
+          if (referrers.length > 0) filters.referrers = referrers;
+          if (landingPaths.length > 0) filters.landingPaths = landingPaths;
           if (countries.length > 0) filters.countries = countries;
           if (runtimeEnvs.length > 0) filters.runtimeEnvs = runtimeEnvs;
 
@@ -283,6 +355,14 @@ export const registerAdvancedQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(
       async (
         options: RootQueryOptions & {
@@ -366,6 +446,14 @@ export const registerAdvancedQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(
       async (
         options: RootQueryOptions & {
@@ -494,6 +582,14 @@ export const registerAdvancedQueryCommands = (
     .option('--variant <name>', 'Filter by experimentVariant (A/B variant)')
     .option('--paywall-id <id>', 'Filter by paywallId')
     .option('--source <name>', 'Filter by properties.source')
+    .option('--project-surface <name>', 'Filter by projectSurface (landing|dashboard|app)')
+    .option('--utm-source <value>', 'Filter by properties.utm_source')
+    .option('--utm-medium <value>', 'Filter by properties.utm_medium')
+    .option('--utm-campaign <value>', 'Filter by properties.utm_campaign')
+    .option('--utm-term <value>', 'Filter by properties.utm_term')
+    .option('--utm-content <value>', 'Filter by properties.utm_content')
+    .option('--referrer <value>', 'Filter by properties.referrer')
+    .option('--landing-path <value>', 'Filter by properties.landing_path')
     .action(
       async (
         options: RootQueryOptions & {

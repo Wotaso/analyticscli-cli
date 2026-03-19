@@ -202,6 +202,14 @@ export const resolveFlowSelectorOption = (options: {
   variant?: string;
   paywallId?: string;
   source?: string;
+  projectSurface?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  referrer?: string;
+  landingPath?: string;
 }): { flow?: FlowSelectorPayload } => {
   const flow: FlowSelectorPayload = {
     appVersion: normalizeOptionString(options.appVersion),
@@ -210,6 +218,14 @@ export const resolveFlowSelectorOption = (options: {
     experimentVariant: normalizeOptionString(options.variant),
     paywallId: normalizeOptionString(options.paywallId),
     source: normalizeOptionString(options.source),
+    projectSurface: normalizeOptionString(options.projectSurface),
+    utmSource: normalizeOptionString(options.utmSource),
+    utmMedium: normalizeOptionString(options.utmMedium),
+    utmCampaign: normalizeOptionString(options.utmCampaign),
+    utmTerm: normalizeOptionString(options.utmTerm),
+    utmContent: normalizeOptionString(options.utmContent),
+    referrer: normalizeOptionString(options.referrer),
+    landingPath: normalizeOptionString(options.landingPath),
   };
 
   const hasAny = Object.values(flow).some((value) => typeof value === 'string' && value.length > 0);

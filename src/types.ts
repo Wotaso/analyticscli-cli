@@ -81,4 +81,12 @@ export type FlowSelectorPayload = {
   experimentVariant?: string;
   paywallId?: string;
   source?: string;
+  projectSurface?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  referrer?: string;
+  landingPath?: string;
 };
