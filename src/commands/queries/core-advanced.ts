@@ -7,6 +7,7 @@ import {
   print,
   resolveFlowSelectorOption,
   resolveProjectOption,
+  withMatchedRecords,
 } from '../../analytics-utils.js';
 import { ONBOARDING_START_EVENT } from '../../constants.js';
 import { noEventsFoundMessage } from '../../dx-messages.js';
@@ -298,10 +299,12 @@ export const registerAdvancedQueryCommands = (
           };
 
           if (root.format === 'text') {
+            const matchedRecords = payload.rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
             const summary = [
               `Generic query (${payload.timeRange.since} -> ${payload.timeRange.until})`,
               `metric: ${payload.metric}`,
               `groupBy: ${payload.groupBy.length > 0 ? payload.groupBy.join(', ') : '(none)'}`,
+              `matched records: ${matchedRecords}`,
               `rows: ${payload.rows.length}/${payload.limit} (order=${payload.orderBy})`,
               `plan: ${payload.plan.mode} ${payload.plan.sourceUsed} (requested=${payload.plan.source}, cost=${payload.plan.estimatedCost})`,
               `reason: ${payload.plan.reason}`,
@@ -335,7 +338,8 @@ export const registerAdvancedQueryCommands = (
             return;
           }
 
-          print(root.format, payload);
+          const matchedRecords = payload.rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+          print(root.format, withMatchedRecords(payload, matchedRecords));
         });
       },
     );
@@ -405,10 +409,12 @@ export const registerAdvancedQueryCommands = (
           };
 
           if (root.format === 'text') {
+            const matchedRecords = payload.cohortSize;
             const summary = [
               `Retention cohort (${options.last})`,
               `anchor event: ${payload.anchorEvent}`,
               `active event: ${payload.activeEvent ?? 'any event'}`,
+              `matched records: ${matchedRecords}`,
               `cohort size: ${payload.cohortSize}`,
               `avg active days: ${payload.avgActiveDays}`,
             ].join('\n');
@@ -424,7 +430,7 @@ export const registerAdvancedQueryCommands = (
             return;
           }
 
-          print(root.format, payload);
+          print(root.format, withMatchedRecords(payload, payload.cohortSize));
         });
       },
     );
@@ -511,6 +517,7 @@ export const registerAdvancedQueryCommands = (
           };
 
           if (root.format === 'text') {
+            const matchedRecords = payload.totals.responses;
             const blocks: string[] = [];
             blocks.push(
               [
@@ -518,6 +525,7 @@ export const registerAdvancedQueryCommands = (
                 `event: ${payload.eventName}`,
                 `survey: ${payload.surveyKey ?? 'all'}`,
                 `question: ${payload.questionKey ?? 'all'}`,
+                `matched records: ${matchedRecords}`,
                 `totals: ${payload.totals.responses} responses / ${payload.totals.uniqueUsers} users`,
                 `anonymization threshold: min ${payload.minUsers} users`,
               ].join('\n'),
@@ -560,7 +568,7 @@ export const registerAdvancedQueryCommands = (
             return;
           }
 
-          print(root.format, payload);
+          print(root.format, withMatchedRecords(payload, payload.totals.responses));
         });
       },
     );
@@ -619,7 +627,7 @@ export const registerAdvancedQueryCommands = (
                   within: options.within,
                 };
 
-          const payload = await requestApi(
+          const payload = (await requestApi(
             'POST',
             '/v1/query/breakdown',
             {
@@ -635,8 +643,29 @@ export const registerAdvancedQueryCommands = (
               apiUrl: root.apiUrl,
               token: root.token,
             },
-          );
-          print(root.format, payload);
+          )) as {
+            by: string;
+            rows: Array<{ key: string; value: number; share: number }>;
+            timeRange?: { since?: string; until?: string };
+          };
+          const matchedRecords = payload.rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+
+          if (root.format === 'text') {
+            const summary = [
+              `Breakdown (${options.last})`,
+              `by: ${payload.by}`,
+              `matched records: ${matchedRecords}`,
+              `rows: ${payload.rows.length}`,
+            ].join('\n');
+            const table = renderTable(
+              ['key', 'value', 'share'],
+              payload.rows.map((row) => [row.key, row.value, `${(row.share * 100).toFixed(2)}%`]),
+            );
+            print('text', `${summary}\n\n${table}`);
+            return;
+          }
+
+          print(root.format, withMatchedRecords(payload, matchedRecords));
         });
       },
     );

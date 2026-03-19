@@ -3,9 +3,11 @@ import {
   asTimeseriesPoints,
   computeTrendFromTimeseriesPoints,
   formatTrendSummary,
+  normalizeMatchedRecords,
   print,
   resolveFlowSelectorOption,
   resolveProjectOption,
+  withMatchedRecords,
 } from '../../analytics-utils.js';
 import { noEventsFoundMessage } from '../../dx-messages.js';
 import { requestApi } from '../../http.js';
@@ -76,7 +78,7 @@ export const registerCoreQueryCommands = (
           .map((step) => step.trim())
           .filter(Boolean);
 
-        const payload = await requestApi(
+        const payload = (await requestApi(
           'POST',
           '/v1/query/funnel',
           {
@@ -91,8 +93,17 @@ export const registerCoreQueryCommands = (
             apiUrl: root.apiUrl,
             token: root.token,
           },
-        );
-        print(root.format, payload);
+        )) as {
+          steps: Array<{
+            step: string;
+            count: number;
+            conversionFromPrevious: number | null;
+            conversionFromFirst: number | null;
+          }>;
+          timeRange?: { since?: string; until?: string };
+        };
+        const matchedRecords = payload.steps[0]?.count ?? 0;
+        print(root.format, withMatchedRecords(payload, matchedRecords));
       });
     });
 
@@ -121,7 +132,7 @@ export const registerCoreQueryCommands = (
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const projectId = await resolveProjectId(options.project);
-        const payload = await requestApi(
+        const payload = (await requestApi(
           'POST',
           '/v1/query/conversion_after',
           {
@@ -137,8 +148,15 @@ export const registerCoreQueryCommands = (
             apiUrl: root.apiUrl,
             token: root.token,
           },
-        );
-        print(root.format, payload);
+        )) as {
+          from: string;
+          to: string;
+          totalFrom: number;
+          totalConverted: number;
+          conversionRate: number;
+          timeRange?: { since?: string; until?: string };
+        };
+        print(root.format, withMatchedRecords(payload, payload.totalFrom));
       });
     });
 
@@ -195,17 +213,21 @@ export const registerCoreQueryCommands = (
           timeRange?: { since?: string; until?: string };
         };
 
+        const matchedRecords = payload.totalFrom;
         if (root.format === 'text') {
           print(
             'text',
-            `Completion ${payload.from} -> ${payload.to}: ${payload.totalConverted}/${payload.totalFrom} (${(
-              payload.conversionRate * 100
-            ).toFixed(2)}%)`,
+            [
+              `Completion ${payload.from} -> ${payload.to}: ${payload.totalConverted}/${payload.totalFrom} (${(
+                payload.conversionRate * 100
+              ).toFixed(2)}%)`,
+              `matched records: ${matchedRecords}`,
+            ].join('\n'),
           );
           return;
         }
 
-        print(root.format, payload);
+        print(root.format, withMatchedRecords(payload, matchedRecords));
       });
     });
 
@@ -234,7 +256,7 @@ export const registerCoreQueryCommands = (
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const projectId = await resolveProjectId(options.project);
-        const payload = await requestApi(
+        const payload = (await requestApi(
           'POST',
           '/v1/query/paths_after',
           {
@@ -250,8 +272,13 @@ export const registerCoreQueryCommands = (
             apiUrl: root.apiUrl,
             token: root.token,
           },
-        );
-        print(root.format, payload);
+        )) as {
+          from: string;
+          rows: Array<{ eventName: string; count: number; share: number }>;
+          timeRange?: { since?: string; until?: string };
+        };
+        const matchedRecords = payload.rows.reduce((sum, row) => sum + (row.count ?? 0), 0);
+        print(root.format, withMatchedRecords(payload, matchedRecords));
       });
     });
 
@@ -317,6 +344,9 @@ export const registerCoreQueryCommands = (
 
           const vizMode = String(options.viz ?? 'none');
           const points = asTimeseriesPoints(payload);
+          const matchedRecords = normalizeMatchedRecords(
+            points.reduce((sum, point) => sum + (point.value ?? 0), 0),
+          );
           const trend = options.trend ? computeTrendFromTimeseriesPoints(points) : null;
           if ((vizMode === 'table' || vizMode === 'chart') && points.length === 0) {
             print(
@@ -334,7 +364,10 @@ export const registerCoreQueryCommands = (
               ['timestamp', 'value'],
               points.map((point) => [point.ts, point.value]),
             );
-            const text = options.trend ? `${table}\n\ntrend: ${formatTrendSummary(trend)}` : table;
+            const summary = `matched records: ${matchedRecords}\npoints: ${points.length}`;
+            const text = options.trend
+              ? `${summary}\n\n${table}\n\ntrend: ${formatTrendSummary(trend)}`
+              : `${summary}\n\n${table}`;
             print('text', text);
             return;
           }
@@ -346,13 +379,17 @@ export const registerCoreQueryCommands = (
                 value: point.value,
               })),
             );
-            const text = options.trend ? `${chart}\n\ntrend: ${formatTrendSummary(trend)}` : chart;
+            const summary = `matched records: ${matchedRecords}\npoints: ${points.length}`;
+            const text = options.trend
+              ? `${summary}\n\n${chart}\n\ntrend: ${formatTrendSummary(trend)}`
+              : `${summary}\n\n${chart}`;
             print('text', text);
             return;
           }
 
           if (vizMode === 'none') {
-            const output = options.trend ? { ...payload, trend } : payload;
+            const outputBase = options.trend ? { ...payload, trend } : payload;
+            const output = withMatchedRecords(outputBase, matchedRecords);
             print(root.format, output);
             return;
           }
@@ -367,6 +404,7 @@ export const registerCoreQueryCommands = (
               ok: true,
               file: String(options.out),
               points: points.length,
+              matchedRecords,
               ...(options.trend ? { trend } : {}),
             });
             return;

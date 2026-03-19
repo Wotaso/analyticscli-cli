@@ -4,8 +4,10 @@ import {
   computeRateTrendFromTimeseriesPoints,
   computeTrendFromTimeseriesPoints,
   formatTrendSummary,
+  normalizeMatchedRecords,
   parseCsvOption,
   resolveTrendInterval,
+  withMatchedRecords,
 } from '../src/analytics-utils.js';
 
 test('computeTrendFromTimeseriesPoints reports up/down/flat directions', () => {
@@ -76,4 +78,19 @@ test('parseCsvOption enforces item bounds', () => {
     () => parseCsvOption('a,b,c,d', '--group-by', { minItems: 1, maxItems: 3 }),
     /between 1 and 3 unique values/,
   );
+});
+
+test('normalizeMatchedRecords clamps invalid values and rounds finite values', () => {
+  assert.equal(normalizeMatchedRecords(undefined), 0);
+  assert.equal(normalizeMatchedRecords(Number.NaN), 0);
+  assert.equal(normalizeMatchedRecords(-10), 0);
+  assert.equal(normalizeMatchedRecords(12.6), 13);
+});
+
+test('withMatchedRecords enriches payload with normalized matchedRecords', () => {
+  const payload = withMatchedRecords({ metric: 'event_count' }, 41.2);
+  assert.deepEqual(payload, {
+    metric: 'event_count',
+    matchedRecords: 41,
+  });
 });

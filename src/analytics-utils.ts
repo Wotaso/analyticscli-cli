@@ -162,6 +162,28 @@ export const print = (format: OutputFormat, payload: unknown): void => {
   process.stdout.write(`${formatOutput(format, payload)}\n`);
 };
 
+export const normalizeMatchedRecords = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= 0) {
+    return 0;
+  }
+
+  return Math.round(value);
+};
+
+export const withMatchedRecords = <T extends Record<string, unknown>>(
+  payload: T,
+  matchedRecords: unknown,
+): T & { matchedRecords: number } => {
+  return {
+    ...payload,
+    matchedRecords: normalizeMatchedRecords(matchedRecords),
+  };
+};
+
 export const parseJsonObjectOption = (
   value: string | undefined,
   optionName: string,

@@ -123,6 +123,11 @@ analyticscli feedback export --project <project_id> --last 30d --limit 100
 
 Use `--format json` for scripts/agents and `--format text` for local reading.
 
+Query commands include a confidence/sample-size hint:
+
+- `matchedRecords` in JSON output
+- `matched records: ...` in text summaries
+
 Examples:
 
 ```bash
