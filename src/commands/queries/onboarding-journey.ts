@@ -41,6 +41,35 @@ type OnboardingJourneyOptions = {
   paywallId?: string;
 };
 
+const mapWithConcurrency = async <T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> => {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+
+  const worker = async (): Promise<void> => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      const item = items[index];
+      if (item === undefined) {
+        continue;
+      }
+      results[index] = await mapper(item, index);
+    }
+  };
+
+  await Promise.all(Array.from({ length: limit }, () => worker()));
+  return results;
+};
+
 const formatFlowSummary = (flowSelection: FlowSelectorPayload | undefined): string => {
   if (!flowSelection) {
     return 'all';
@@ -226,14 +255,16 @@ export const registerOnboardingJourneyCommand = (
           ...discoveredJourneyEvents,
         ])].filter((eventName) => eventName !== ONBOARDING_START_EVENT);
 
-        const eventConversions = await Promise.all(
-          eventCandidates.map(async (eventName) => {
+        const eventConversions = await mapWithConcurrency(
+          eventCandidates,
+          3,
+          async (eventName) => {
             const result = await queryConversion(ONBOARDING_START_EVENT, eventName);
             return {
               eventName,
               users: result.totalConverted,
             };
-          }),
+          },
         );
 
         const [paywallAnchorByStart, bestSkipFromStart, bestPurchaseFromStart] = await Promise.all([
