@@ -1,165 +1,200 @@
 import { parseJsonObjectOption, print } from '../analytics-utils.js';
-import { CLI_ANON_ID, CLI_SESSION_ID, CLI_VERSION, CLI_WRITE_COMMANDS_ENABLED, env } from '../constants.js';
-import { requestApi, requestCollect } from '../http.js';
+import { CLI_ANON_ID, CLI_VERSION, env } from '../constants.js';
+import { mapStatusToExitCode } from '../http.js';
 import type { CliCommandContext } from './context.js';
 
+const FEEDBACK_API_HEADER = 'x-feedback-key';
+
+const sanitizeMetadataKey = (value: string): string => {
+  const trimmed = value.trim().toLowerCase();
+  const normalized = trimmed.replace(/[^a-z0-9._-]/g, '_').slice(0, 40);
+  return normalized.length > 0 ? normalized : 'meta';
+};
+
+const normalizeMetadataValue = (value: unknown): string | number | boolean | null => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const resolveExternalFeedbackConfig = (options: {
+  serviceUrl?: string;
+  serviceKey?: string;
+  appId?: string;
+  userId?: string;
+}) => {
+  const serviceUrl = String(options.serviceUrl ?? env.ANALYTICSCLI_FEEDBACK_SERVICE_URL ?? '').replace(/\/$/, '');
+  const serviceKey = String(options.serviceKey ?? env.ANALYTICSCLI_FEEDBACK_SERVICE_API_KEY ?? '').trim();
+  const appId = String(options.appId ?? env.ANALYTICSCLI_FEEDBACK_SERVICE_APP_ID ?? '').trim();
+  const userId = String(options.userId ?? env.ANALYTICSCLI_FEEDBACK_USER_ID ?? CLI_ANON_ID).trim();
+
+  if (!serviceUrl || !serviceKey || !appId) {
+    throw Object.assign(
+      new Error(
+        'Missing feedback service config. Set ANALYTICSCLI_FEEDBACK_SERVICE_URL, ANALYTICSCLI_FEEDBACK_SERVICE_API_KEY and ANALYTICSCLI_FEEDBACK_SERVICE_APP_ID.',
+      ),
+      { exitCode: 2 },
+    );
+  }
+
+  if (!userId) {
+    throw Object.assign(new Error('Missing feedback user id. Pass --user-id or set ANALYTICSCLI_FEEDBACK_USER_ID.'), {
+      exitCode: 2,
+    });
+  }
+
+  return {
+    serviceUrl,
+    serviceKey,
+    appId,
+    userId,
+  };
+};
+
 export const registerFeedbackCommands = (context: CliCommandContext): void => {
-  const { program, withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
+  const { program, withErrorHandling, getRootOptions } = context;
 
   const feedback = program.command('feedback').description('Feedback data helpers');
 
-  if (CLI_WRITE_COMMANDS_ENABLED) {
-    feedback
-      .command('submit')
-      .description('Submit product feedback for AnalyticsCLI')
-      .requiredOption('--message <text>', 'Feedback message')
-      .option('--rating <n>', 'Optional rating 1-5')
-      .option('--category <type>', 'bug|feature|ux|performance|other', 'other')
-      .option('--context <text>', 'Optional context, e.g. what failed')
-      .option('--meta <json>', 'Optional JSON object with additional fields')
-      .option('--endpoint <url>', 'Collector endpoint (defaults to ANALYTICSCLI_SELF_TRACKING_ENDPOINT)')
-      .option('--project <id>', 'Project ID for feedback events (defaults to ANALYTICSCLI_SELF_TRACKING_PROJECT_ID)')
-      .option('--api-key <key>', 'Write key for feedback events (defaults to ANALYTICSCLI_SELF_TRACKING_API_KEY)')
-      .action(
-        async (options: {
-          message: string;
-          rating?: string;
-          category?: string;
-          context?: string;
-          meta?: string;
-          endpoint?: string;
-          project?: string;
-          apiKey?: string;
-        }) => {
-          await withErrorHandling(async () => {
-            const root = getRootOptions();
-            const endpoint = String(options.endpoint ?? env.ANALYTICSCLI_SELF_TRACKING_ENDPOINT ?? '').replace(
-              /\/$/,
-              '',
+  feedback
+    .command('submit')
+    .description('Submit product feedback to the external feedback service')
+    .requiredOption('--message <text>', 'Feedback message')
+    .option('--rating <n>', 'Optional rating 1-5')
+    .option('--category <type>', 'bug|feature|ux|performance|other', 'other')
+    .option('--context <text>', 'Optional context, e.g. what failed')
+    .option('--meta <json>', 'Optional JSON object with additional fields')
+    .option('--location <value>', 'Location identifier, e.g. dashboard/settings', 'analyticscli-cli')
+    .option('--surface <value>', 'Surface identifier', 'analyticscli-cli')
+    .option('--service-url <url>', 'Feedback service URL (defaults to ANALYTICSCLI_FEEDBACK_SERVICE_URL)')
+    .option('--service-key <key>', 'Feedback service API key (defaults to ANALYTICSCLI_FEEDBACK_SERVICE_API_KEY)')
+    .option('--app-id <id>', 'Feedback app id (defaults to ANALYTICSCLI_FEEDBACK_SERVICE_APP_ID)')
+    .option('--user-id <id>', 'Feedback user id (defaults to ANALYTICSCLI_FEEDBACK_USER_ID or CLI anon id)')
+    .action(
+      async (options: {
+        message: string;
+        rating?: string;
+        category?: string;
+        context?: string;
+        meta?: string;
+        location?: string;
+        surface?: string;
+        serviceUrl?: string;
+        serviceKey?: string;
+        appId?: string;
+        userId?: string;
+      }) => {
+        await withErrorHandling(async () => {
+          const root = getRootOptions();
+          const { serviceUrl, serviceKey, appId, userId } = resolveExternalFeedbackConfig(options);
+
+          const category = String(options.category ?? 'other').toLowerCase();
+          if (!['bug', 'feature', 'ux', 'performance', 'other'].includes(category)) {
+            throw Object.assign(
+              new Error('Invalid --category. Use bug|feature|ux|performance|other'),
+              { exitCode: 2 },
             );
-            const projectId = String(options.project ?? env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID ?? '').trim();
-            const apiKey = String(options.apiKey ?? env.ANALYTICSCLI_SELF_TRACKING_API_KEY ?? '').trim();
+          }
 
-            const category = String(options.category ?? 'other').toLowerCase();
-            if (!['bug', 'feature', 'ux', 'performance', 'other'].includes(category)) {
-              throw Object.assign(
-                new Error('Invalid --category. Use bug|feature|ux|performance|other'),
-                { exitCode: 2 },
-              );
+          let rating: number | undefined;
+          if (options.rating !== undefined) {
+            const parsedRating = Number(options.rating);
+            if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+              throw Object.assign(new Error('Invalid --rating. Use an integer 1-5.'), { exitCode: 2 });
             }
+            rating = parsedRating;
+          }
 
-            let rating: number | undefined;
-            if (options.rating !== undefined) {
-              const parsedRating = Number(options.rating);
-              if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
-                throw Object.assign(new Error('Invalid --rating. Use an integer 1-5.'), { exitCode: 2 });
-              }
-              rating = parsedRating;
-            }
+          const message = String(options.message).trim();
+          if (!message) {
+            throw Object.assign(new Error('Feedback message must not be empty.'), { exitCode: 2 });
+          }
 
-            const meta = parseJsonObjectOption(options.meta as string | undefined, '--meta');
-            const message = String(options.message);
-            const contextText = options.context ? String(options.context) : null;
+          const contextText = options.context ? String(options.context).trim() : '';
+          const metadataOption = parseJsonObjectOption(options.meta as string | undefined, '--meta');
+          const metadata: Record<string, string | number | boolean | null> = {
+            category,
+            cliVersion: CLI_VERSION,
+            ...(rating !== undefined ? { rating } : {}),
+            ...(contextText ? { context: contextText } : {}),
+            ...(root.apiUrl ? { apiUrl: root.apiUrl } : {}),
+          };
 
-            const apiPayload: Record<string, unknown> = {
-              source: 'cli',
-              message,
-              category,
-              context: contextText,
-              meta,
-              ...(rating !== undefined ? { rating } : {}),
-              ...(projectId ? { project_id: projectId } : {}),
-            };
+          for (const [key, rawValue] of Object.entries(metadataOption)) {
+            metadata[`meta.${sanitizeMetadataKey(key)}`] = normalizeMetadataValue(rawValue);
+          }
 
-            let response: unknown;
-            let delivery: 'api' | 'ingest-fallback' = 'api';
-
-            try {
-              response = await requestApi('POST', '/v1/feedback', apiPayload, {
-                apiUrl: root.apiUrl,
-                token: root.token,
-              });
-            } catch (apiError) {
-              if (!endpoint || !projectId || !apiKey) {
-                throw apiError;
-              }
-
-              const now = new Date().toISOString();
-              const ingestPayload = {
-                projectId,
-                sentAt: now,
-                events: [
-                  {
-                    eventName: 'feedback_submitted',
-                    ts: now,
-                    sessionId: CLI_SESSION_ID,
-                    anonId: CLI_ANON_ID,
-                    properties: {
-                      message,
-                      ...(rating !== undefined ? { rating } : {}),
-                      category,
-                      context: contextText,
-                      source: 'cli',
-                      meta,
-                    },
-                    platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
-                    appVersion: CLI_VERSION,
-                    type: 'feedback',
-                  },
-                ],
-              };
-
-              response = await requestCollect('/v1/collect', ingestPayload, {
-                endpoint,
-                apiKey,
-              });
-              delivery = 'ingest-fallback';
-            }
-
-            if (root.format === 'text') {
-              print('text', 'Feedback gesendet.');
-              return;
-            }
-
-            print(root.format, {
-              ok: true,
-              delivery,
-              ...(projectId ? { projectId } : {}),
-              ...(delivery === 'ingest-fallback' ? { endpoint } : {}),
-              category,
-              ...(rating !== undefined ? { rating } : {}),
-              response,
-            });
+          const response = await fetch(`${serviceUrl}/v1/feedback`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              [FEEDBACK_API_HEADER]: serviceKey,
+            },
+            body: JSON.stringify({
+              appId,
+              userId,
+              feedback: message,
+              location: String(options.location ?? 'analyticscli-cli').trim() || 'analyticscli-cli',
+              appSurface: String(options.surface ?? 'analyticscli-cli').trim() || 'analyticscli-cli',
+              metadata,
+            }),
           });
-        },
-      );
-  }
+
+          const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+          if (!response.ok) {
+            const message =
+              typeof payload.error === 'string'
+                ? payload.error
+                : `Feedback service request failed with status ${response.status}`;
+            const error = Object.assign(new Error(message), {
+              exitCode: mapStatusToExitCode(response.status),
+              payload,
+            });
+            throw error;
+          }
+
+          if (root.format === 'text') {
+            print('text', 'Feedback an den externen Feedback-Service gesendet.');
+            return;
+          }
+
+          print(root.format, {
+            ok: true,
+            delivery: 'external-feedback-service',
+            serviceUrl,
+            appId,
+            userId,
+            category,
+            ...(rating !== undefined ? { rating } : {}),
+            response: payload,
+          });
+        });
+      },
+    );
 
   feedback
     .command('export')
-    .option('--project <id>', 'Project ID (optional when a default project is selected)')
-    .option('--last <duration>', 'Time range like 30d', '30d')
-    .option('--limit <n>', 'Page size', '100')
-    .option('--cursor <cursor>', 'Pagination cursor')
-    .action(async (options: { project?: string; last: string; limit: string; cursor?: string }) => {
+    .option('--project <id>', 'Project ID (unused; export is disabled)')
+    .option('--last <duration>', 'Time range like 30d (unused; export is disabled)', '30d')
+    .option('--limit <n>', 'Page size (unused; export is disabled)', '100')
+    .option('--cursor <cursor>', 'Pagination cursor (unused; export is disabled)')
+    .action(async () => {
       await withErrorHandling(async () => {
-        const root = getRootOptions();
-        const projectId = await resolveProjectId(options.project);
-        const qs = new URLSearchParams({
-          projectId,
-          last: options.last,
-          limit: String(Number(options.limit)),
-          includeDebug: String(includeDebugFlag()),
-        });
-        if (options.cursor) {
-          qs.set('cursor', options.cursor);
-        }
-
-        const payload = await requestApi('GET', `/v1/feedback/export?${qs.toString()}`, undefined, {
-          apiUrl: root.apiUrl,
-          token: root.token,
-        });
-        print(root.format, payload);
+        throw Object.assign(
+          new Error('Feedback export is disabled in this deployment. Use your external feedback service dashboard instead.'),
+          { exitCode: 2 },
+        );
       });
     });
 };

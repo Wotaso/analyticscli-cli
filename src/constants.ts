@@ -25,10 +25,11 @@ export const ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES = ['analyticscli-cli'] as con
 export const CLAWHUB_SITE_URL = 'https://clawhub.com';
 export const KEYCHAIN_SERVICE = 'com.analyticscli.cli.token';
 export const KEYCHAIN_ACCOUNT = process.env.USER ?? process.env.USERNAME ?? 'default';
-export const SELF_TRACKING_ENDPOINT = env.ANALYTICSCLI_SELF_TRACKING_ENDPOINT?.replace(/\/$/, '');
-export const SELF_TRACKING_ENABLED = Boolean(
-  env.ANALYTICSCLI_SELF_TRACKING_ENABLED &&
-    SELF_TRACKING_ENDPOINT &&
+export const SELF_TRACKING_ENABLED = Boolean(env.ANALYTICSCLI_SELF_TRACKING_ENABLED);
+export const LEGACY_SELF_TRACKING_ENDPOINT = env.ANALYTICSCLI_SELF_TRACKING_ENDPOINT?.replace(/\/$/, '');
+export const LEGACY_SELF_TRACKING_ENABLED = Boolean(
+  SELF_TRACKING_ENABLED &&
+    LEGACY_SELF_TRACKING_ENDPOINT &&
     env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID &&
     env.ANALYTICSCLI_SELF_TRACKING_API_KEY,
 );

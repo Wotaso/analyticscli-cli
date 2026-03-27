@@ -11,7 +11,6 @@ import {
   SKILLS_PUBLIC_REPO_SLUG,
 } from './constants.js';
 import { configPath, persistAuthToken, readConfig, resolveAuthToken, writeConfigValue } from './config-store.js';
-import { exchangeClerkJwtForReadonlyToken } from './http.js';
 import { isCommandAvailable, runCommand } from './shell.js';
 import type {
   OutputFormat,
@@ -203,23 +202,14 @@ export const runSetupFlow = async (
   };
 
   if (!options.skipLogin) {
-    if (options.clerkJwt) {
-      const exchanged = await exchangeClerkJwtForReadonlyToken(apiUrl, options.clerkJwt);
-      const persisted = await persistAuthToken(activeConfig, apiUrl, exchanged.token);
+    const providedToken = options.readonlyToken?.trim() || root.token?.trim();
+
+    if (providedToken) {
+      const persisted = await persistAuthToken(activeConfig, apiUrl, providedToken);
       activeConfig = persisted.config;
       loginResult = {
         ok: true,
-        mode: 'clerk_exchange',
-        tokenStorage: persisted.storage,
-        tenantId: exchanged.tenantId,
-        projectIds: exchanged.projectIds,
-      };
-    } else if (root.token?.trim()) {
-      const persisted = await persistAuthToken(activeConfig, apiUrl, root.token.trim());
-      activeConfig = persisted.config;
-      loginResult = {
-        ok: true,
-        mode: 'existing_token',
+        mode: 'provided_token',
         tokenStorage: persisted.storage,
       };
     } else if (resolveAuthToken(activeConfig, root.token)) {
@@ -231,7 +221,7 @@ export const runSetupFlow = async (
     } else {
       throw Object.assign(
         new Error(
-          'Provide --clerk-jwt for setup login, or pass --skip-login if you want skills only.',
+          'Provide --readonly-token/--token for setup login, or pass --skip-login if you want skills only.',
         ),
         { exitCode: 2 },
       );
@@ -297,10 +287,10 @@ export const promptRequiredValue = async (rl: PromptClient, question: string): P
 export const promptLoginMode = async (
   rl: PromptClient,
   hasExistingToken: boolean,
-): Promise<'clerk' | 'existing' | 'skip'> => {
+): Promise<'provided' | 'existing' | 'skip'> => {
   while (true) {
     process.stdout.write('\nLogin method:\n');
-    process.stdout.write('  1) Clerk JWT\n');
+    process.stdout.write('  1) Readonly token\n');
     if (hasExistingToken) {
       process.stdout.write('  2) Use existing token\n');
       process.stdout.write('  3) Skip for now\n');
@@ -314,7 +304,7 @@ export const promptLoginMode = async (
     const choice = answer || defaultChoice;
 
     if (choice === '1') {
-      return 'clerk';
+      return 'provided';
     }
     if (choice === '2' && hasExistingToken) {
       return 'existing';

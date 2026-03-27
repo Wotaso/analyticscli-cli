@@ -28,6 +28,10 @@ const cliSchema = z.object({
   ANALYTICSCLI_SELF_TRACKING_PROJECT_ID: z.string().uuid().optional(),
   ANALYTICSCLI_SELF_TRACKING_API_KEY: z.string().min(8).optional(),
   ANALYTICSCLI_SELF_TRACKING_PLATFORM: z.string().default('cli'),
+  ANALYTICSCLI_FEEDBACK_SERVICE_URL: optionalUrlEnv,
+  ANALYTICSCLI_FEEDBACK_SERVICE_API_KEY: z.string().min(8).optional(),
+  ANALYTICSCLI_FEEDBACK_SERVICE_APP_ID: z.string().min(2).max(64).optional(),
+  ANALYTICSCLI_FEEDBACK_USER_ID: z.string().min(1).max(128).optional(),
 });
 
 export type CliEnv = z.infer<typeof cliSchema>;

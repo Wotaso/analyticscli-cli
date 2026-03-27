@@ -125,43 +125,6 @@ export const requestCollect = async (
   return data;
 };
 
-export const exchangeClerkJwtForReadonlyToken = async (
-  apiUrl: string,
-  clerkJwt: string,
-): Promise<{
-  token: string;
-  tenantId?: unknown;
-  projectIds?: unknown;
-  analyticsDataResidency?: unknown;
-}> => {
-  const response = await fetch(`${apiUrl}/v1/auth/exchange-clerk`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${clerkJwt}`,
-    },
-    body: JSON.stringify({}),
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok || typeof payload.token !== 'string') {
-    const err = new Error('Failed to exchange Clerk token') as Error & {
-      exitCode?: number;
-      payload?: unknown;
-    };
-    err.exitCode = mapStatusToExitCode(response.status);
-    err.payload = payload;
-    throw err;
-  }
-
-  return {
-    token: payload.token,
-    tenantId: payload.tenantId,
-    projectIds: payload.projectIds,
-    analyticsDataResidency: payload.analyticsDataResidency,
-  };
-};
-
 const createResponseError = (
   status: number,
   payload: Record<string, unknown>,

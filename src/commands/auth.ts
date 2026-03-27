@@ -2,7 +2,6 @@ import { createInterface } from 'node:readline/promises';
 import { print } from '../analytics-utils.js';
 import { configPath, persistAuthToken, readConfig, resolveAuthToken } from '../config-store.js';
 import { CLAWHUB_SITE_URL } from '../constants.js';
-import { exchangeClerkJwtForReadonlyToken } from '../http.js';
 import { isCommandAvailable, openExternalUrl } from '../shell.js';
 import {
   parseSetupAgents,
@@ -20,51 +19,28 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('login')
-    .description('Store a readonly token directly, or exchange a Clerk JWT')
-    .option('--clerk-jwt <jwt>', 'Clerk JWT to exchange')
+    .description('Store a readonly token for CLI/API access')
     .option('--readonly-token <token>', 'Readonly token to store directly')
-    .action(async (options: { clerkJwt?: string; readonlyToken?: string }) => {
+    .action(async (options: { readonlyToken?: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const config = await readConfig();
         const apiUrl = (root.apiUrl ?? config.apiUrl).replace(/\/$/, '');
 
         const directToken = options.readonlyToken?.trim() ?? root.token?.trim();
-        const clerkJwt = options.clerkJwt?.trim();
 
-        if (directToken && clerkJwt) {
-          throw Object.assign(new Error('Use either --readonly-token/--token or --clerk-jwt, not both.'), {
-            exitCode: 2,
-          });
-        }
-
-        if (!directToken && !clerkJwt) {
-          throw Object.assign(new Error('Provide --readonly-token/--token or --clerk-jwt'), { exitCode: 2 });
+        if (!directToken) {
+          throw Object.assign(new Error('Provide --readonly-token or --token'), { exitCode: 2 });
         }
 
         const now = new Date().toISOString();
-        if (directToken) {
-          const persisted = await persistAuthToken(config, apiUrl, directToken);
-          print(root.format, {
-            ok: true,
-            mode: 'direct_token',
-            tokenStorage: persisted.storage,
-            configPath,
-            updatedAt: now,
-          });
-          return;
-        }
-
-        const exchanged = await exchangeClerkJwtForReadonlyToken(apiUrl, String(clerkJwt));
-        const persisted = await persistAuthToken(config, apiUrl, exchanged.token);
+        const persisted = await persistAuthToken(config, apiUrl, directToken);
 
         print(root.format, {
           ok: true,
-          mode: 'clerk_exchange',
+          mode: 'provided_token',
           tokenStorage: persisted.storage,
           configPath,
-          tenantId: exchanged.tenantId,
-          projectIds: exchanged.projectIds,
           updatedAt: now,
         });
       });
@@ -72,15 +48,15 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('setup')
-    .description('One-time setup: install skills, login, and enable optional auto skill refresh')
-    .option('--clerk-jwt <jwt>', 'Clerk JWT to exchange for a readonly token')
+    .description('One-time setup: install skills, optionally persist a readonly token, and enable optional auto skill refresh')
+    .option('--readonly-token <token>', 'Readonly token to persist during setup')
     .option('--skip-login', 'Skip login step', false)
     .option('--skip-skills', 'Skip skill installation step', false)
     .option('--agents <targets>', 'all|codex|claude|openclaw (comma-separated)', 'all')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
-        clerkJwt?: string;
+        readonlyToken?: string;
         skipLogin?: boolean;
         skipSkills?: boolean;
         agents?: string;
@@ -90,7 +66,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           const root = getRootOptions();
           const agents = parseSetupAgents(String(options.agents ?? 'all'));
           const result = await runSetupFlow(root, {
-            clerkJwt: options.clerkJwt,
+            readonlyToken: options.readonlyToken,
             skipLogin: options.skipLogin,
             skipSkills: options.skipSkills,
             agents,
@@ -109,12 +85,12 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('onboard')
-    .description('Interactive onboarding: choose skill install targets and login method')
-    .option('--clerk-jwt <jwt>', 'Clerk JWT to exchange for a readonly token')
+    .description('Interactive onboarding: choose skill install targets and optionally store a readonly token')
+    .option('--readonly-token <token>', 'Readonly token to persist during onboarding')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
-        clerkJwt?: string;
+        readonlyToken?: string;
         autoSkillUpdate?: boolean;
       }) => {
         await withErrorHandling(async () => {
@@ -130,7 +106,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           }
 
           const selectedAgents: SetupAgent[] = [];
-          let clerkJwt = options.clerkJwt;
+          let readonlyToken = options.readonlyToken?.trim();
           let skipLogin = false;
           let autoSkillUpdate = options.autoSkillUpdate;
           const rl = createInterface({
@@ -180,13 +156,13 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
               }
             }
 
-            if (!clerkJwt) {
+            if (!readonlyToken) {
               const config = await readConfig();
               const hasExistingToken = Boolean(resolveAuthToken(config, root.token));
               const loginMode = await promptLoginMode(rl, hasExistingToken);
 
-              if (loginMode === 'clerk') {
-                clerkJwt = await promptRequiredValue(rl, 'Enter Clerk JWT:');
+              if (loginMode === 'provided') {
+                readonlyToken = await promptRequiredValue(rl, 'Enter readonly token:');
               } else if (loginMode === 'skip') {
                 skipLogin = true;
               }
@@ -201,7 +177,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
           const shouldSkipSkills = selectedAgents.length === 0;
           const result = await runSetupFlow(root, {
-            clerkJwt,
+            readonlyToken,
             skipLogin,
             skipSkills: shouldSkipSkills,
             agents: shouldSkipSkills ? ['codex'] : selectedAgents,

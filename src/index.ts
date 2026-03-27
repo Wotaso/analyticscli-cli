@@ -12,15 +12,23 @@ import {
   CLI_ANON_ID,
   CLI_SESSION_ID,
   CLI_VERSION,
+  LEGACY_SELF_TRACKING_ENABLED,
+  LEGACY_SELF_TRACKING_ENDPOINT,
   SELF_TRACKING_ENABLED,
-  SELF_TRACKING_ENDPOINT,
   env,
 } from './constants.js';
+import { readConfig, resolveAuthToken } from './config-store.js';
 import { resolveProjectId as resolveProjectIdWithFallback } from './project-selection.js';
 import { maybeAutoRefreshSkills, maybeNotifyCliUpdate } from './setup.js';
 
 let activeCommandPath = 'unknown';
 let activeCommandStartMs = Date.now();
+
+type SelfTrackingRequestOptions = {
+  apiUrl?: string;
+  token?: string;
+  projectId?: string;
+};
 
 const resolveCommandPath = (command: Command): string => {
   const names: string[] = [];
@@ -37,55 +45,117 @@ const resolveCommandPath = (command: Command): string => {
   return names.join(' ') || 'unknown';
 };
 
+const sendLegacySelfTrackingEvent = async (
+  eventName: string,
+  properties: Record<string, unknown>,
+): Promise<void> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 1200);
+  try {
+    await fetch(`${LEGACY_SELF_TRACKING_ENDPOINT}/v1/collect`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': String(env.ANALYTICSCLI_SELF_TRACKING_API_KEY),
+      },
+      keepalive: true,
+      signal: controller.signal,
+      body: JSON.stringify({
+        projectId: String(env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID),
+        sentAt: new Date().toISOString(),
+        events: [
+          {
+            eventId: `${eventName}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+            eventName,
+            ts: new Date().toISOString(),
+            sessionId: CLI_SESSION_ID,
+            anonId: CLI_ANON_ID,
+            properties: {
+              ...properties,
+              platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
+              nodeVersion: process.version,
+              cliVersion: CLI_VERSION,
+            },
+            platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
+            projectSurface: 'cli',
+            appVersion: CLI_VERSION,
+            type: 'track',
+          },
+        ],
+      }),
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const sendApiSelfTrackingEvent = async (
+  eventName: string,
+  properties: Record<string, unknown>,
+  options: SelfTrackingRequestOptions,
+): Promise<void> => {
+  const config = await readConfig();
+  const token = resolveAuthToken(config, options.token?.trim());
+  if (!token) {
+    return;
+  }
+
+  const apiUrl = (options.apiUrl?.trim() || config.apiUrl || env.ANALYTICSCLI_API_URL).replace(/\/$/, '');
+  const projectId =
+    options.projectId?.trim() ||
+    env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID?.trim() ||
+    config.selectedProjectId ||
+    undefined;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 1200);
+
+  try {
+    await fetch(`${apiUrl}/v1/telemetry/cli`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${token}`,
+      },
+      keepalive: true,
+      signal: controller.signal,
+      body: JSON.stringify({
+        eventName,
+        projectId,
+        sessionId: CLI_SESSION_ID,
+        anonId: CLI_ANON_ID,
+        sentAt: new Date().toISOString(),
+        properties: {
+          ...properties,
+          platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
+          nodeVersion: process.version,
+          cliVersion: CLI_VERSION,
+        },
+      }),
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 const emitSelfTrackingEvent = async (
   eventName: string,
   properties: Record<string, unknown>,
+  options: SelfTrackingRequestOptions,
 ): Promise<void> => {
   if (!SELF_TRACKING_ENABLED) {
     return;
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 1200);
-    try {
-      await fetch(`${SELF_TRACKING_ENDPOINT}/v1/collect`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': String(env.ANALYTICSCLI_SELF_TRACKING_API_KEY),
-        },
-        keepalive: true,
-        signal: controller.signal,
-        body: JSON.stringify({
-          projectId: String(env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID),
-          sentAt: new Date().toISOString(),
-          events: [
-            {
-              eventId: `${eventName}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-              eventName,
-              ts: new Date().toISOString(),
-              sessionId: CLI_SESSION_ID,
-              anonId: CLI_ANON_ID,
-              properties: {
-                ...properties,
-                platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
-                nodeVersion: process.version,
-                cliVersion: CLI_VERSION,
-              },
-              platform: env.ANALYTICSCLI_SELF_TRACKING_PLATFORM,
-              projectSurface: 'cli',
-              appVersion: CLI_VERSION,
-              type: 'track',
-            },
-          ],
-        }),
-      });
-    } finally {
-      clearTimeout(timeoutId);
+    if (LEGACY_SELF_TRACKING_ENABLED) {
+      await sendLegacySelfTrackingEvent(eventName, properties);
+      return;
     }
+    await sendApiSelfTrackingEvent(eventName, properties, options);
   } catch {
     // Self-tracking must never break CLI behavior.
   }
@@ -100,6 +170,10 @@ const withErrorHandling = async (fn: () => Promise<void>): Promise<void> => {
       command: activeCommandPath,
       durationMs: Date.now() - activeCommandStartMs,
       exitCode: typed.exitCode ?? 4,
+    }, {
+      apiUrl: getRootOptions().apiUrl,
+      token: getRootOptions().token,
+      projectId: getRootOptions().project,
     });
     const payload = typed.payload ?? {
       error: {
@@ -161,13 +235,22 @@ program.hook('preAction', async (_thisCommand, actionCommand) => {
   });
   await emitSelfTrackingEvent('cli:command_started', {
     command: activeCommandPath,
+  }, {
+    apiUrl: root.apiUrl,
+    token: root.token,
+    projectId: root.project,
   });
 });
 
 program.hook('postAction', async (_thisCommand, actionCommand) => {
+  const root = getRootOptions();
   await emitSelfTrackingEvent('cli:command_succeeded', {
     command: resolveCommandPath(actionCommand),
     durationMs: Date.now() - activeCommandStartMs,
+  }, {
+    apiUrl: root.apiUrl,
+    token: root.token,
+    projectId: root.project,
   });
 });
 
@@ -182,9 +265,14 @@ if (CLI_DEV_COMMANDS_ENABLED) {
 
 program.parseAsync(process.argv).catch(async (error) => {
   const typed = error as Error;
+  const root = getRootOptions();
   await emitSelfTrackingEvent('cli:parse_failed', {
     command: activeCommandPath,
     durationMs: Date.now() - activeCommandStartMs,
+  }, {
+    apiUrl: root.apiUrl,
+    token: root.token,
+    projectId: root.project,
   });
   process.stderr.write(`${JSON.stringify({ error: { message: typed.message } })}\n`);
   process.exitCode = 4;

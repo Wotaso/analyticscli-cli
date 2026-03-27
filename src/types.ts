@@ -38,14 +38,12 @@ export type SkillInstallResult = {
 export type SetupLoginResult = {
   ok: boolean;
   skipped?: boolean;
-  mode?: 'clerk_exchange' | 'existing_token';
+  mode?: 'provided_token' | 'existing_token';
   tokenStorage?: 'config_file' | 'system_keychain';
-  tenantId?: unknown;
-  projectIds?: unknown;
 };
 
 export type SetupExecutionOptions = {
-  clerkJwt?: string;
+  readonlyToken?: string;
   skipLogin?: boolean;
   skipSkills?: boolean;
   agents: SetupAgent[];
