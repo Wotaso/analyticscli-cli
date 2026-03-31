@@ -26,7 +26,7 @@ test('readConfig returns defaults when config file does not exist', async () => 
   assert.match(config.updatedAt, /T/);
 });
 
-test('readConfig normalizes types and supports legacy suppressed update flag', async () => {
+test('readConfig normalizes types without legacy suppressed update fallback', async () => {
   await removeConfigFile();
   await mkdir(dirname(store.configPath), { recursive: true });
   await writeFile(
@@ -41,7 +41,6 @@ test('readConfig normalizes types and supports legacy suppressed update flag', a
       lastSeenCliVersion: '0.1.0',
       lastCliVersionCheckAt: '2026-03-20T11:00:00.000Z',
       lastCliVersionNotified: '0.1.1',
-      suppressCliUpdatePrompt: true,
       setupCompletedAt: '2026-03-20T12:00:00.000Z',
       updatedAt: '2026-03-20T13:00:00.000Z',
     }),
@@ -58,7 +57,7 @@ test('readConfig normalizes types and supports legacy suppressed update flag', a
   assert.equal(config.lastSeenCliVersion, '0.1.0');
   assert.equal(config.lastCliVersionCheckAt, '2026-03-20T11:00:00.000Z');
   assert.equal(config.lastCliVersionNotified, '0.1.1');
-  assert.equal(config.suppressedCliUpdateVersion, '0.1.1');
+  assert.equal(config.suppressedCliUpdateVersion, undefined);
   assert.equal(config.setupCompletedAt, '2026-03-20T12:00:00.000Z');
   assert.equal(config.updatedAt, '2026-03-20T13:00:00.000Z');
 });
@@ -73,7 +72,6 @@ test('readConfig falls back to defaults for invalid field types', async () => {
       token: 456,
       tokenStorage: 'invalid',
       skillAutoUpdate: 'true',
-      suppressCliUpdatePrompt: false,
       lastCliVersionNotified: '0.1.2',
       suppressedCliUpdateVersion: '0.1.3',
       updatedAt: 123,

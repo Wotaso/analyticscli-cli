@@ -65,11 +65,11 @@ const resolveExternalFeedbackConfig = (options: {
 export const registerFeedbackCommands = (context: CliCommandContext): void => {
   const { program, withErrorHandling, getRootOptions } = context;
 
-  const feedback = program.command('feedback').description('Feedback data helpers');
+  const feedback = program.command('feedback').description('Send tenant feedback about AnalyticsCLI');
 
   feedback
     .command('submit')
-    .description('Submit product feedback to the external feedback service')
+    .description('Submit tenant product feedback about AnalyticsCLI')
     .requiredOption('--message <text>', 'Feedback message')
     .option('--rating <n>', 'Optional rating 1-5')
     .option('--category <type>', 'bug|feature|ux|performance|other', 'other')
@@ -182,19 +182,4 @@ export const registerFeedbackCommands = (context: CliCommandContext): void => {
         });
       },
     );
-
-  feedback
-    .command('export')
-    .option('--project <id>', 'Project ID (unused; export is disabled)')
-    .option('--last <duration>', 'Time range like 30d (unused; export is disabled)', '30d')
-    .option('--limit <n>', 'Page size (unused; export is disabled)', '100')
-    .option('--cursor <cursor>', 'Pagination cursor (unused; export is disabled)')
-    .action(async () => {
-      await withErrorHandling(async () => {
-        throw Object.assign(
-          new Error('Feedback export is disabled in this deployment. Use your external feedback service dashboard instead.'),
-          { exitCode: 2 },
-        );
-      });
-    });
 };

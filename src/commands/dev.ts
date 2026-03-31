@@ -46,20 +46,6 @@ export const registerDevCommands = (context: CliCommandContext): void => {
                 properties: { appVersion: i % 2 === 0 ? '1.0.0' : '1.1.0' },
               },
             );
-
-            if (i % 4 === 0) {
-              events.push({
-                eventId: randomUUID(),
-                eventName: 'feedback_submitted',
-                ts: new Date(now + 2000).toISOString(),
-                sessionId,
-                anonId,
-                properties: {
-                  message: `Feedback message ${i}`,
-                  rating: (i % 5) + 1,
-                },
-              });
-            }
           }
 
           const response = await fetch(`${options.endpoint.replace(/\/$/, '')}/v1/collect`, {

@@ -113,10 +113,10 @@ analyticscli events export --project <project_id> --year 2026 --month 2 --out ./
 analyticscli events export-range --project <project_id> --last 90d --out ./events-last-90d.csv
 ```
 
-### Feedback export
+### Product feedback
 
 ```bash
-analyticscli feedback export --project <project_id> --last 30d --limit 100
+ANALYTICSCLI_CLI_ENABLE_WRITE_COMMANDS=true analyticscli feedback submit --message "Session detail view needs raw JSON" --category feature --context "dashboard/settings"
 ```
 
 ## Output Modes
