@@ -2,6 +2,8 @@ import { createInterface } from 'node:readline/promises';
 import {
   CLAWHUB_SITE_URL,
   ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES,
+  ANALYTICSCLI_OPENCLAW_AUTO_REFRESH_SKILL_NAMES,
+  ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES,
   ANALYTICSCLI_SETUP_SKILL_NAMES,
   CLI_VERSION,
   CLI_VERSION_CHECK_INTERVAL_MS,
@@ -23,6 +25,22 @@ import type {
 } from './types.js';
 
 const formatCommand = (command: string, args: string[]) => `\`${[command, ...args].join(' ')}\``;
+
+const normalizeConfiguredAgents = (agents: SetupAgent[]): SetupAgent[] => {
+  const ordered: SetupAgent[] = ['codex', 'claude', 'openclaw'];
+  return ordered.filter((agent) => agents.includes(agent));
+};
+
+export const resolveAutoRefreshSkillNames = (agents?: readonly SetupAgent[]): string[] => {
+  const skillNames = new Set<string>(ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES);
+  if (agents?.includes('openclaw')) {
+    for (const skillName of ANALYTICSCLI_OPENCLAW_AUTO_REFRESH_SKILL_NAMES) {
+      skillNames.add(skillName);
+    }
+  }
+
+  return [...skillNames];
+};
 
 const getClawHubInvoker = (): { command: string; prefix: string[] } | null => {
   if (isCommandAvailable('clawhub')) {
@@ -145,7 +163,7 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
         detail: `Neither \`clawhub\` nor \`npx\` is available. Install ClawHub first or use ${CLAWHUB_SITE_URL}.`,
       });
     } else {
-      const installs = ANALYTICSCLI_SETUP_SKILL_NAMES.map((skillName) => {
+      const installs = ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES.map((skillName) => {
         const install = runCommand(invoker.command, [...invoker.prefix, 'install', skillName], {
           timeoutMs: 120_000,
         });
@@ -163,7 +181,7 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
         skipped: false,
         detail: summarizeRuns(
           installs,
-          `Skills installed/updated via ${formatCommand(invoker.command, [...invoker.prefix, 'install', 'analyticscli-cli'])} and the matching \`analyticscli-ts-sdk\` command.`,
+          `Skills installed/updated via ${formatCommand(invoker.command, [...invoker.prefix, 'install', 'analyticscli-cli'])}, the matching \`analyticscli-ts-sdk\` command, and ${formatCommand(invoker.command, [...invoker.prefix, 'install', 'openclaw-growth-engineer'])}.`,
         ),
       });
     }
@@ -181,7 +199,9 @@ export const renderSetupTextSummary = (label: string, result: SetupExecutionResu
   ];
 
   for (const entry of result.skillSetup) {
-    lines.push(`- Skills (${entry.target}): ${entry.ok ? 'ok' : entry.skipped ? 'skipped' : 'failed'}`);
+    lines.push(
+      `- Skills (${entry.target}): ${entry.ok ? 'ok' : entry.skipped ? 'skipped' : 'failed'}${entry.detail ? ` — ${entry.detail}` : ''}`,
+    );
   }
 
   return lines.join('\n');
@@ -233,6 +253,7 @@ export const runSetupFlow = async (
   const finalConfig = {
     ...activeConfig,
     apiUrl,
+    setupAgents: options.skipSkills ? activeConfig.setupAgents : normalizeConfiguredAgents(options.agents),
     skillAutoUpdate: autoSkillUpdateEnabled,
     setupCompletedAt: activeConfig.setupCompletedAt ?? now,
     lastSkillSyncAt: options.skipSkills ? activeConfig.lastSkillSyncAt : now,
@@ -522,7 +543,7 @@ export const maybeAutoRefreshSkills = async (commandPath: string): Promise<void>
 
   let didRefresh = false;
   if (shouldRefreshOnCliUpgrade || shouldRefreshPeriodically) {
-    refreshSkills(ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES, SKILL_SYNC_TIMEOUT_MS);
+    refreshSkills(resolveAutoRefreshSkillNames(config.setupAgents), SKILL_SYNC_TIMEOUT_MS);
     didRefresh = true;
   }
 

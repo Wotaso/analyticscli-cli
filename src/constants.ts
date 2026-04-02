@@ -20,8 +20,17 @@ export const CLI_VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const CLI_VERSION_CHECK_TIMEOUT_MS = 2500;
 export const SKILLS_PUBLIC_REPO_SLUG = 'wotaso/analyticscli-skills';
 export const SKILLS_PUBLIC_REPO_URL = `https://github.com/${SKILLS_PUBLIC_REPO_SLUG}`;
+export const OPENCLAW_GROWTH_SKILL_NAME = 'openclaw-growth-engineer' as const;
 export const ANALYTICSCLI_SETUP_SKILL_NAMES = ['analyticscli-cli', 'analyticscli-ts-sdk'] as const;
+export const ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES = [
+  ...ANALYTICSCLI_SETUP_SKILL_NAMES,
+  OPENCLAW_GROWTH_SKILL_NAME,
+] as const;
 export const ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES = ['analyticscli-cli'] as const;
+export const ANALYTICSCLI_OPENCLAW_AUTO_REFRESH_SKILL_NAMES = [
+  ...ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES,
+  OPENCLAW_GROWTH_SKILL_NAME,
+] as const;
 export const CLAWHUB_SITE_URL = 'https://clawhub.com';
 export const KEYCHAIN_SERVICE = 'com.analyticscli.cli.token';
 export const KEYCHAIN_ACCOUNT = process.env.USER ?? process.env.USERNAME ?? 'default';

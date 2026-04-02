@@ -17,6 +17,7 @@ Available AnalyticsCLI skills:
 
 - [`analyticscli-cli`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/analyticscli-cli): CLI setup, auth, query workflows, exports
 - [`analyticscli-ts-sdk`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/analyticscli-ts-sdk): SDK integration/upgrades for JS/TS, React Native, Expo
+- [`openclaw-growth-engineer`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/openclaw-growth-engineer): OpenClaw-first growth autopilot for mobile apps, GitHub issue/PR proposal generation, and external mobile-service connectors
 
 ## Install
 
@@ -147,13 +148,14 @@ Global options available on all commands:
 
 - `readonly_token` is for query/export usage.
 - It is different from SDK write keys used for event ingestion.
-- `analyticscli setup` and `analyticscli onboard` can also install public skills (`analyticscli-cli`, `analyticscli-ts-sdk`).
+- `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` everywhere, plus `openclaw-growth-engineer` automatically when `--agents openclaw` is selected.
 
 ## Auto Maintenance
 
 - CLI startup checks for newer CLI versions once per day and shows an update hint in text mode.
 - In interactive terminals, the update prompt supports `y` (update now), `n` (ask later), and `a` (skip this offered version).
 - When the CLI binary version changes, the CLI auto-refreshes the `analyticscli-cli` skill.
+- If OpenClaw was configured during setup, the CLI also refreshes `openclaw-growth-engineer`.
 - Automatic refresh intentionally does **not** force-update the `analyticscli-ts-sdk` skill, because SDK versions in app codebases can lag intentionally.
 
 ## Releases

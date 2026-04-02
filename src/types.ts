@@ -3,6 +3,7 @@ export type CliConfig = {
   token?: string;
   tokenStorage?: 'config_file' | 'system_keychain';
   selectedProjectId?: string;
+  setupAgents?: SetupAgent[];
   skillAutoUpdate?: boolean;
   lastSkillSyncAt?: string;
   lastSeenCliVersion?: string;

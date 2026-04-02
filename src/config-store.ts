@@ -5,6 +5,18 @@ import { env, KEYCHAIN_ACCOUNT, KEYCHAIN_SERVICE } from './constants.js';
 import { runCommand } from './shell.js';
 import type { CliConfig } from './types.js';
 
+const isSetupAgent = (value: unknown): value is NonNullable<CliConfig['setupAgents']>[number] =>
+  value === 'codex' || value === 'claude' || value === 'openclaw';
+
+const normalizeSetupAgents = (value: unknown): CliConfig['setupAgents'] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const deduped = value.filter(isSetupAgent).filter((agent, index, all) => all.indexOf(agent) === index);
+  return deduped.length > 0 ? deduped : undefined;
+};
+
 const resolveConfigPath = (): string => {
   if (env.ANALYTICSCLI_CONFIG_DIR) {
     return join(env.ANALYTICSCLI_CONFIG_DIR, 'config.json');
@@ -32,6 +44,7 @@ export const readConfig = async (): Promise<CliConfig> => {
           : undefined,
       selectedProjectId:
         typeof parsed.selectedProjectId === 'string' ? parsed.selectedProjectId : undefined,
+      setupAgents: normalizeSetupAgents(parsed.setupAgents),
       skillAutoUpdate: typeof parsed.skillAutoUpdate === 'boolean' ? parsed.skillAutoUpdate : false,
       lastSkillSyncAt: typeof parsed.lastSkillSyncAt === 'string' ? parsed.lastSkillSyncAt : undefined,
       lastSeenCliVersion:

@@ -36,6 +36,7 @@ test('readConfig normalizes types without legacy suppressed update fallback', as
       token: 'token-from-file',
       tokenStorage: 'config_file',
       selectedProjectId: 'project_123',
+      setupAgents: ['openclaw', 'codex', 'openclaw', 'invalid'],
       skillAutoUpdate: true,
       lastSkillSyncAt: '2026-03-20T10:00:00.000Z',
       lastSeenCliVersion: '0.1.0',
@@ -52,6 +53,7 @@ test('readConfig normalizes types without legacy suppressed update fallback', as
   assert.equal(config.token, 'token-from-file');
   assert.equal(config.tokenStorage, 'config_file');
   assert.equal(config.selectedProjectId, 'project_123');
+  assert.deepEqual(config.setupAgents, ['openclaw', 'codex']);
   assert.equal(config.skillAutoUpdate, true);
   assert.equal(config.lastSkillSyncAt, '2026-03-20T10:00:00.000Z');
   assert.equal(config.lastSeenCliVersion, '0.1.0');
