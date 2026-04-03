@@ -194,7 +194,7 @@ program
   .option('--token <token>', 'Override auth token for this call')
   .option('--project <id>', 'Default project ID for this command invocation')
   .option('--format <format>', 'Output format json|text', 'json')
-  .option('--include-debug', 'Include development/debug events in query/export commands', false)
+  .option('--include-debug', 'Use debug-only events (exclude release/production events)', false)
   .option('--quiet', 'Reduce text output noise', false);
 
 const getRootOptions = (): RootCliOptions => program.opts<RootCliOptions>();
