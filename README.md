@@ -30,7 +30,7 @@ npm install -g @analyticscli/cli@preview
 One-off usage without global install:
 
 ```bash
-npx -y @analyticscli/cli@preview --help
+npx  @analyticscli/cli@preview --help
 ```
 
 When stable releases are available, install without a tag:
