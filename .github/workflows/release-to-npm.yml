@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+      id-token: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PACKAGE_NAME: '@analyticscli/cli'
@@ -77,9 +78,55 @@ jobs:
       - name: Publish to npm
         if: ${{ steps.npm-check.outputs.published == 'false' }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CLI_NPM_TOKEN: ${{ secrets.CLI_NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          pnpm publish --access public --tag "${{ steps.meta.outputs.dist_tag }}" --no-git-checks
+          set -euo pipefail
+
+          publish_tag="${{ steps.meta.outputs.dist_tag }}"
+          publish_output="$(mktemp)"
+
+          # Prefer npm trusted publishing via GitHub OIDC.
+          unset NODE_AUTH_TOKEN || true
+          set +e
+          env -u NODE_AUTH_TOKEN npm publish --access public --tag "${publish_tag}" --provenance 2>&1 | tee "${publish_output}"
+          publish_exit=$?
+          set -e
+
+          if [[ ${publish_exit} -eq 0 ]]; then
+            exit 0
+          fi
+
+          if grep -Fq "You cannot publish over the previously published versions" "${publish_output}"; then
+            echo "Version ${{ steps.meta.outputs.version }} became already published while workflow was running; continuing."
+            exit 0
+          fi
+
+          publish_token="${NPM_TOKEN:-${CLI_NPM_TOKEN:-}}"
+          if [[ -z "${publish_token}" ]]; then
+            echo "npm trusted publishing failed and neither NPM_TOKEN nor CLI_NPM_TOKEN is configured." >&2
+            echo "Configure npm trusted publishing for this repository/workflow or add one of those secrets." >&2
+            exit "${publish_exit}"
+          fi
+
+          echo "Trusted publishing failed; retrying with token fallback."
+          rm -f "${publish_output}"
+          publish_output="$(mktemp)"
+          set +e
+          NODE_AUTH_TOKEN="${publish_token}" npm publish --access public --tag "${publish_tag}" 2>&1 | tee "${publish_output}"
+          publish_exit=$?
+          set -e
+
+          if [[ ${publish_exit} -eq 0 ]]; then
+            exit 0
+          fi
+
+          if grep -Fq "You cannot publish over the previously published versions" "${publish_output}"; then
+            echo "Version ${{ steps.meta.outputs.version }} became already published while workflow was running; continuing."
+            exit 0
+          fi
+
+          exit "${publish_exit}"
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
