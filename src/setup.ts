@@ -59,15 +59,6 @@ const runCodexClaudeSkillInstall = (skillName: string, timeoutMs = 120_000) =>
     timeoutMs,
   });
 
-const runClawHubCommand = (args: string[], timeoutMs: number) => {
-  const invoker = getClawHubInvoker();
-  if (!invoker) {
-    return null;
-  }
-
-  return runCommand(invoker.command, [...invoker.prefix, ...args], { timeoutMs });
-};
-
 const summarizeRuns = (
   runs: Array<{ name: string; ok: boolean; timedOut: boolean; stderr: string; code: number | null }>,
   successDetail: string,
@@ -181,7 +172,7 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
         skipped: false,
         detail: summarizeRuns(
           installs,
-          `Skills installed/updated via ${formatCommand(invoker.command, [...invoker.prefix, 'install', 'analyticscli-cli'])}, the matching \`analyticscli-ts-sdk\` command, and ${formatCommand(invoker.command, [...invoker.prefix, 'install', 'openclaw-growth-engineer'])}.`,
+          `Skill installed/updated via ${formatCommand(invoker.command, [...invoker.prefix, 'install', ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES[0]])}.`,
         ),
       });
     }
@@ -449,10 +440,6 @@ const refreshSkills = (skillNames: readonly string[], timeoutMs: number): void =
     for (const skillName of skillNames) {
       runCodexClaudeSkillInstall(skillName, timeoutMs);
     }
-  }
-
-  for (const skillName of skillNames) {
-    runClawHubCommand(['update', skillName], timeoutMs);
   }
 };
 

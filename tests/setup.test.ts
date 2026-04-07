@@ -11,10 +11,7 @@ test('parseSetupAgents keeps valid unique setup targets and expands all', () => 
   assert.deepEqual(parseSetupAgents('all'), ['codex', 'claude', 'openclaw']);
 });
 
-test('resolveAutoRefreshSkillNames includes openclaw growth skill only for openclaw setups', () => {
+test('resolveAutoRefreshSkillNames keeps ClawHub-only skills out of GitHub skill refresh', () => {
   assert.deepEqual(resolveAutoRefreshSkillNames(['codex']), ['analyticscli-cli']);
-  assert.deepEqual(resolveAutoRefreshSkillNames(['openclaw']), [
-    'analyticscli-cli',
-    'openclaw-growth-engineer',
-  ]);
+  assert.deepEqual(resolveAutoRefreshSkillNames(['openclaw']), ['analyticscli-cli']);
 });

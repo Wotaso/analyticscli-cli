@@ -129,7 +129,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
             const installOpenclaw = await promptYesNo(
               rl,
-              'Install AnalyticsCLI OpenClaw skills via ClawHub (`analyticscli-cli`, `analyticscli-ts-sdk`, `openclaw-growth-engineer`)?',
+              'Install the canonical ClawHub skill (`ai-product-manager`)?',
               false,
             );
             if (installOpenclaw) {
