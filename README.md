@@ -19,24 +19,24 @@ Available AnalyticsCLI skills:
 - [`analyticscli-ts-sdk`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/analyticscli-ts-sdk): SDK integration/upgrades for JS/TS, React Native, Expo
 - ClawHub: `ai-product-manager` is the canonical published skill
 
-## Install
+## Run With npx
 
-Global install (recommended for daily usage):
+No global install is required:
+
+```bash
+npx @analyticscli/cli@preview onboard
+```
+
+When stable releases are available, use the package without a dist-tag:
+
+```bash
+npx @analyticscli/cli onboard
+```
+
+Optional global install for daily usage:
 
 ```bash
 npm install -g @analyticscli/cli@preview
-```
-
-One-off usage without global install:
-
-```bash
-npx  @analyticscli/cli@preview --help
-```
-
-When stable releases are available, install without a tag:
-
-```bash
-npm install -g @analyticscli/cli
 ```
 
 ## Quick Start
@@ -49,23 +49,23 @@ You need:
 Interactive setup (recommended):
 
 ```bash
-analyticscli onboard
+npx @analyticscli/cli@preview onboard
 ```
 
 Non-interactive login:
 
 ```bash
-analyticscli login --readonly-token <readonly_token>
+npx @analyticscli/cli@preview login --readonly-token <readonly_token>
 ```
 
 Then run your first queries:
 
 ```bash
-analyticscli projects list
-analyticscli schema events --project <project_id>
-analyticscli funnel --project <project_id> --steps onboarding:start,onboarding:complete --last 30d
-analyticscli timeseries --project <project_id> --metric event_count --interval 1d --last 30d --viz table
-analyticscli generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
+npx @analyticscli/cli@preview projects list
+npx @analyticscli/cli@preview schema events --project <project_id>
+npx @analyticscli/cli@preview funnel --project <project_id> --steps onboarding:start,onboarding:complete --last 30d
+npx @analyticscli/cli@preview timeseries --project <project_id> --metric event_count --interval 1d --last 30d --viz table
+npx @analyticscli/cli@preview generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
 ```
 
 ## Troubleshooting Empty States
