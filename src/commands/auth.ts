@@ -21,20 +21,16 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
     .command('login')
     .description('Store an access token for CLI/API access')
     .option('--access-token <token>', 'Access token to store directly')
-    .option('--readonly-token <token>', 'Readonly token to store directly')
-    .action(async (options: { accessToken?: string; readonlyToken?: string }) => {
+    .action(async (options: { accessToken?: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const config = await readConfig();
         const apiUrl = (root.apiUrl ?? config.apiUrl).replace(/\/$/, '');
 
-        const directToken = options.accessToken?.trim() ?? options.readonlyToken?.trim() ?? root.token?.trim();
+        const directToken = options.accessToken?.trim() ?? root.accessToken?.trim();
 
         if (!directToken) {
-          throw Object.assign(
-            new Error('Provide --access-token, --readonly-token, or --token'),
-            { exitCode: 2 },
-          );
+          throw Object.assign(new Error('Provide --access-token'), { exitCode: 2 });
         }
 
         const now = new Date().toISOString();
@@ -54,7 +50,6 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
     .command('setup')
     .description('One-time setup: install skills, optionally persist an access token, and enable optional auto skill refresh')
     .option('--access-token <token>', 'Access token to persist during setup')
-    .option('--readonly-token <token>', 'Readonly token to persist during setup')
     .option('--skip-login', 'Skip login step', false)
     .option('--skip-skills', 'Skip skill installation step', false)
     .option('--agents <targets>', 'all|codex|claude|openclaw (comma-separated)', 'all')
@@ -62,7 +57,6 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
     .action(
       async (options: {
         accessToken?: string;
-        readonlyToken?: string;
         skipLogin?: boolean;
         skipSkills?: boolean;
         agents?: string;
@@ -73,7 +67,6 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           const agents = parseSetupAgents(String(options.agents ?? 'all'));
           const result = await runSetupFlow(root, {
             accessToken: options.accessToken,
-            readonlyToken: options.readonlyToken,
             skipLogin: options.skipLogin,
             skipSkills: options.skipSkills,
             agents,
@@ -94,12 +87,10 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
     .command('onboard')
     .description('Interactive onboarding: choose skill install targets and optionally store an access token')
     .option('--access-token <token>', 'Access token to persist during onboarding')
-    .option('--readonly-token <token>', 'Readonly token to persist during onboarding')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
         accessToken?: string;
-        readonlyToken?: string;
         autoSkillUpdate?: boolean;
       }) => {
         await withErrorHandling(async () => {
@@ -115,7 +106,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           }
 
           const selectedAgents: SetupAgent[] = [];
-          let accessToken = options.accessToken?.trim() ?? options.readonlyToken?.trim();
+          let accessToken = options.accessToken?.trim();
           let skipLogin = false;
           let autoSkillUpdate = options.autoSkillUpdate;
           const rl = createInterface({
@@ -167,7 +158,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
             if (!accessToken) {
               const config = await readConfig();
-              const hasExistingToken = Boolean(resolveAuthToken(config, root.token));
+              const hasExistingToken = Boolean(resolveAuthToken(config, root.accessToken));
               const loginMode = await promptLoginMode(rl, hasExistingToken);
 
               if (loginMode === 'provided') {

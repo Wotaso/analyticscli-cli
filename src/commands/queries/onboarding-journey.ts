@@ -138,7 +138,7 @@ export const registerOnboardingJourneyCommand = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             totalFrom: number;
@@ -205,7 +205,7 @@ export const registerOnboardingJourneyCommand = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           ).then((payload) => asTimeseriesPoints(payload));
 
@@ -224,7 +224,7 @@ export const registerOnboardingJourneyCommand = (
           undefined,
           {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           },
         )) as {
           items?: Array<{ eventName?: string }>;

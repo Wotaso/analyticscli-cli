@@ -20,7 +20,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
         if (root.format === 'text') {
           const projectsInScope = await fetchProjectOptions({
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           });
 
           if (projectsInScope.length === 0) {
@@ -40,7 +40,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
 
         const payload = await requestApi('GET', '/v1/projects', undefined, {
           apiUrl: root.apiUrl,
-          token: root.token,
+          token: root.accessToken,
         });
         print(root.format, payload);
       });
@@ -74,7 +74,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
 
         const projectsInScope = await fetchProjectOptions({
           apiUrl: root.apiUrl,
-          token: root.token,
+          token: root.accessToken,
         });
         if (projectsInScope.length === 0) {
           throw Object.assign(new Error(noProjectsFoundMessage()), {
@@ -115,7 +115,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           );
 
@@ -145,7 +145,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
             undefined,
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           );
           print(root.format, payload);
@@ -175,7 +175,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
 
         const payload = await requestApi('GET', `/v1/schema/events?${qs.toString()}`, undefined, {
           apiUrl: root.apiUrl,
-          token: root.token,
+          token: root.accessToken,
         });
 
         if (root.format === 'text') {

@@ -26,7 +26,7 @@ let activeCommandStartMs = Date.now();
 
 type SelfTrackingRequestOptions = {
   apiUrl?: string;
-  token?: string;
+  accessToken?: string;
   projectId?: string;
 };
 
@@ -97,7 +97,7 @@ const sendApiSelfTrackingEvent = async (
   options: SelfTrackingRequestOptions,
 ): Promise<void> => {
   const config = await readConfig();
-  const token = resolveAuthToken(config, options.token?.trim());
+  const token = resolveAuthToken(config, options.accessToken?.trim());
   if (!token) {
     return;
   }
@@ -172,7 +172,7 @@ const withErrorHandling = async (fn: () => Promise<void>): Promise<void> => {
       exitCode: typed.exitCode ?? 4,
     }, {
       apiUrl: getRootOptions().apiUrl,
-      token: getRootOptions().token,
+      accessToken: getRootOptions().accessToken,
       projectId: getRootOptions().project,
     });
     const payload = typed.payload ?? {
@@ -192,7 +192,6 @@ program
   .description('Agent-friendly AnalyticsCLI CLI')
   .option('--api-url <url>', 'API base URL')
   .option('--access-token <token>', 'Override access token for this call')
-  .option('--token <token>', 'Legacy alias for --access-token')
   .option('--project <id>', 'Default project ID for this command invocation')
   .option('--format <format>', 'Output format json|text', 'json')
   .option('--include-debug', 'Use debug-only events (exclude release/production events)', false)
@@ -202,7 +201,7 @@ const getRootOptions = (): RootCliOptions => {
   const options = program.opts<RootCliOptions>();
   return {
     ...options,
-    token: options.accessToken?.trim() || options.token?.trim(),
+    accessToken: options.accessToken?.trim(),
   };
 };
 const includeDebugFlag = (): boolean => Boolean(getRootOptions().includeDebug);
@@ -212,7 +211,7 @@ const resolveProjectId = async (projectOption?: string): Promise<string> => {
     explicitProjectId: projectOption,
     rootProjectId: root.project,
     apiUrl: root.apiUrl,
-    token: root.token,
+    token: root.accessToken,
     allowInteractiveSelection: true,
   });
   return resolved.projectId;
@@ -244,7 +243,7 @@ program.hook('preAction', async (_thisCommand, actionCommand) => {
     command: activeCommandPath,
   }, {
     apiUrl: root.apiUrl,
-    token: root.token,
+    accessToken: root.accessToken,
     projectId: root.project,
   });
 });
@@ -256,7 +255,7 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
     durationMs: Date.now() - activeCommandStartMs,
   }, {
     apiUrl: root.apiUrl,
-    token: root.token,
+    accessToken: root.accessToken,
     projectId: root.project,
   });
 });
@@ -278,7 +277,7 @@ program.parseAsync(process.argv).catch(async (error) => {
     durationMs: Date.now() - activeCommandStartMs,
   }, {
     apiUrl: root.apiUrl,
-    token: root.token,
+    accessToken: root.accessToken,
     projectId: root.project,
   });
   process.stderr.write(`${JSON.stringify({ error: { message: typed.message } })}\n`);

@@ -140,7 +140,6 @@ Global options available on all commands:
 
 - `--api-url <url>` override API base URL
 - `--access-token <token>` override stored token for one command
-- `--token <token>` legacy alias for `--access-token`
 - `--format json|text` choose output mode
 - `--include-debug` include debug/dev data on supported reads
 - `--quiet` reduce text output noise
@@ -148,7 +147,6 @@ Global options available on all commands:
 ## Authentication Notes
 
 - `access_token` is the canonical name for CLI/query/export usage.
-- `readonly_token` remains a supported legacy alias.
 - It is different from the publishable SDK key used for event ingestion.
 - `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` for Codex/Claude Code. When `--agents openclaw` is selected, they install the canonical ClawHub skill `ai-product-manager`.
 

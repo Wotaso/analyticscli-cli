@@ -37,10 +37,7 @@ export const readConfig = async (): Promise<CliConfig> => {
         : undefined;
     return {
       apiUrl: typeof parsed.apiUrl === 'string' ? parsed.apiUrl : env.ANALYTICSCLI_API_URL,
-      token:
-        typeof parsed.token === 'string'
-          ? parsed.token
-          : env.ANALYTICSCLI_ACCESS_TOKEN ?? env.ANALYTICSCLI_READONLY_TOKEN,
+      token: typeof parsed.token === 'string' ? parsed.token : env.ANALYTICSCLI_ACCESS_TOKEN,
       tokenStorage:
         parsed.tokenStorage === 'system_keychain' || parsed.tokenStorage === 'config_file'
           ? parsed.tokenStorage
@@ -63,7 +60,7 @@ export const readConfig = async (): Promise<CliConfig> => {
   } catch {
     return {
       apiUrl: env.ANALYTICSCLI_API_URL,
-      token: env.ANALYTICSCLI_ACCESS_TOKEN ?? env.ANALYTICSCLI_READONLY_TOKEN,
+      token: env.ANALYTICSCLI_ACCESS_TOKEN,
       skillAutoUpdate: false,
       updatedAt: new Date().toISOString(),
     };

@@ -288,7 +288,7 @@ export const registerEventCommands = (context: CliCommandContext): void => {
 
         const payload = await requestApi('GET', `/v1/export/events/months?${qs.toString()}`, undefined, {
           apiUrl: root.apiUrl,
-          token: root.token,
+          token: root.accessToken,
         });
         print(root.format, payload);
       });
@@ -318,7 +318,7 @@ export const registerEventCommands = (context: CliCommandContext): void => {
         try {
           const { csv, filename } = await requestCsvExport(`/v1/export/events/download?${qs.toString()}`, {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           });
 
           const outPath = options.out ? String(options.out) : `./${filename}`;
@@ -345,7 +345,7 @@ export const registerEventCommands = (context: CliCommandContext): void => {
 
           await runHistoricalExport({
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
             format: root.format,
             quiet: root.quiet,
             projectId,
@@ -381,7 +381,7 @@ export const registerEventCommands = (context: CliCommandContext): void => {
           const projectId = await resolveProjectId(options.project);
           await runHistoricalExport({
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
             format: root.format,
             quiet: root.quiet,
             projectId,

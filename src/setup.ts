@@ -199,7 +199,7 @@ export const renderSetupTextSummary = (label: string, result: SetupExecutionResu
 };
 
 export const runSetupFlow = async (
-  root: { apiUrl?: string; token?: string },
+  root: { apiUrl?: string; accessToken?: string },
   options: SetupExecutionOptions,
 ): Promise<SetupExecutionResult> => {
   const initialConfig = await readConfig();
@@ -213,8 +213,7 @@ export const runSetupFlow = async (
   };
 
   if (!options.skipLogin) {
-    const providedToken =
-      options.accessToken?.trim() || options.readonlyToken?.trim() || root.token?.trim();
+    const providedToken = options.accessToken?.trim() || root.accessToken?.trim();
 
     if (providedToken) {
       const persisted = await persistAuthToken(activeConfig, apiUrl, providedToken);
@@ -224,7 +223,7 @@ export const runSetupFlow = async (
         mode: 'provided_token',
         tokenStorage: persisted.storage,
       };
-    } else if (resolveAuthToken(activeConfig, root.token)) {
+    } else if (resolveAuthToken(activeConfig, root.accessToken)) {
       loginResult = {
         ok: true,
         mode: 'existing_token',
@@ -233,7 +232,7 @@ export const runSetupFlow = async (
     } else {
       throw Object.assign(
         new Error(
-          'Provide --access-token/--readonly-token/--token for setup login, or pass --skip-login if you want skills only.',
+          'Provide --access-token for setup login, or pass --skip-login if you want skills only.',
         ),
         { exitCode: 2 },
       );

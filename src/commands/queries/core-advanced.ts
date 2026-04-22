@@ -280,7 +280,7 @@ export const registerAdvancedQueryCommands = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             metric: string;
@@ -397,7 +397,7 @@ export const registerAdvancedQueryCommands = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             anchorEvent: string;
@@ -495,7 +495,7 @@ export const registerAdvancedQueryCommands = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             eventName: string;
@@ -641,7 +641,7 @@ export const registerAdvancedQueryCommands = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             by: string;

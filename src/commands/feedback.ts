@@ -348,7 +348,7 @@ export const registerFeedbackCommands = (context: CliCommandContext): void => {
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             ok: boolean;
@@ -416,7 +416,7 @@ export const registerFeedbackCommands = (context: CliCommandContext): void => {
             undefined,
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as FeedbackListResponse;
 
@@ -480,7 +480,7 @@ export const registerFeedbackCommands = (context: CliCommandContext): void => {
             undefined,
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as FeedbackListResponse;
 

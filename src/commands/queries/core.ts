@@ -91,7 +91,7 @@ export const registerCoreQueryCommands = (
           },
           {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           },
         )) as {
           steps: Array<{
@@ -146,7 +146,7 @@ export const registerCoreQueryCommands = (
           },
           {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           },
         )) as {
           from: string;
@@ -202,7 +202,7 @@ export const registerCoreQueryCommands = (
           },
           {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           },
         )) as {
           from: string;
@@ -270,7 +270,7 @@ export const registerCoreQueryCommands = (
           },
           {
             apiUrl: root.apiUrl,
-            token: root.token,
+            token: root.accessToken,
           },
         )) as {
           from: string;
@@ -334,7 +334,7 @@ export const registerCoreQueryCommands = (
             },
             {
               apiUrl: root.apiUrl,
-              token: root.token,
+              token: root.accessToken,
             },
           )) as {
             metric: string;
