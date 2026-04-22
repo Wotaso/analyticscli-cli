@@ -37,7 +37,10 @@ export const readConfig = async (): Promise<CliConfig> => {
         : undefined;
     return {
       apiUrl: typeof parsed.apiUrl === 'string' ? parsed.apiUrl : env.ANALYTICSCLI_API_URL,
-      token: typeof parsed.token === 'string' ? parsed.token : undefined,
+      token:
+        typeof parsed.token === 'string'
+          ? parsed.token
+          : env.ANALYTICSCLI_ACCESS_TOKEN ?? env.ANALYTICSCLI_READONLY_TOKEN,
       tokenStorage:
         parsed.tokenStorage === 'system_keychain' || parsed.tokenStorage === 'config_file'
           ? parsed.tokenStorage
@@ -60,6 +63,7 @@ export const readConfig = async (): Promise<CliConfig> => {
   } catch {
     return {
       apiUrl: env.ANALYTICSCLI_API_URL,
+      token: env.ANALYTICSCLI_ACCESS_TOKEN ?? env.ANALYTICSCLI_READONLY_TOKEN,
       skillAutoUpdate: false,
       updatedAt: new Date().toISOString(),
     };
@@ -124,7 +128,7 @@ const writeTokenToSystemStore = (token: string): boolean => {
   if (process.platform === 'linux') {
     const result = runCommand(
       'secret-tool',
-      ['store', '--label', 'AnalyticsCLI CLI token', 'service', KEYCHAIN_SERVICE, 'account', KEYCHAIN_ACCOUNT],
+      ['store', '--label', 'AnalyticsCLI access token', 'service', KEYCHAIN_SERVICE, 'account', KEYCHAIN_ACCOUNT],
       { input: token, timeoutMs: 5000 },
     );
     return result.ok;

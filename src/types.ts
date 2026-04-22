@@ -44,6 +44,7 @@ export type SetupLoginResult = {
 };
 
 export type SetupExecutionOptions = {
+  accessToken?: string;
   readonlyToken?: string;
   skipLogin?: boolean;
   skipSkills?: boolean;

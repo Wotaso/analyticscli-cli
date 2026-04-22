@@ -213,7 +213,8 @@ export const runSetupFlow = async (
   };
 
   if (!options.skipLogin) {
-    const providedToken = options.readonlyToken?.trim() || root.token?.trim();
+    const providedToken =
+      options.accessToken?.trim() || options.readonlyToken?.trim() || root.token?.trim();
 
     if (providedToken) {
       const persisted = await persistAuthToken(activeConfig, apiUrl, providedToken);
@@ -232,7 +233,7 @@ export const runSetupFlow = async (
     } else {
       throw Object.assign(
         new Error(
-          'Provide --readonly-token/--token for setup login, or pass --skip-login if you want skills only.',
+          'Provide --access-token/--readonly-token/--token for setup login, or pass --skip-login if you want skills only.',
         ),
         { exitCode: 2 },
       );

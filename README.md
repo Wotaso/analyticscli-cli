@@ -1,6 +1,6 @@
 # analyticscli
 
-Agent-friendly CLI for querying analytics, exporting events, and working with project-scoped read access in AnalyticsCLI.
+Agent-friendly CLI for querying analytics, exporting events, and working with account-wide read access in AnalyticsCLI.
 
 Using a coding agent: you can let it handle CLI setup, auth, and query workflows end-to-end with the AnalyticsCLI skills repo:
 https://github.com/Wotaso/analyticscli-skills
@@ -43,7 +43,7 @@ npm install -g @analyticscli/cli@preview
 
 You need:
 
-- a `readonly_token` (read-only CLI scope)
+- an `access_token` (private read-only CLI scope)
 - a `project_id` (from `analyticscli projects list`)
 
 Interactive setup (recommended):
@@ -55,7 +55,7 @@ npx @analyticscli/cli@preview onboard
 Non-interactive login:
 
 ```bash
-npx @analyticscli/cli@preview login --readonly-token <readonly_token>
+npx @analyticscli/cli@preview login --access-token <access_token>
 ```
 
 Then run your first queries:
@@ -139,15 +139,17 @@ analyticscli timeseries --project <project_id> --metric event_count --last 7d --
 Global options available on all commands:
 
 - `--api-url <url>` override API base URL
-- `--token <token>` override stored token for one command
+- `--access-token <token>` override stored token for one command
+- `--token <token>` legacy alias for `--access-token`
 - `--format json|text` choose output mode
 - `--include-debug` include debug/dev data on supported reads
 - `--quiet` reduce text output noise
 
 ## Authentication Notes
 
-- `readonly_token` is for query/export usage.
-- It is different from SDK write keys used for event ingestion.
+- `access_token` is the canonical name for CLI/query/export usage.
+- `readonly_token` remains a supported legacy alias.
+- It is different from the publishable SDK key used for event ingestion.
 - `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` for Codex/Claude Code. When `--agents openclaw` is selected, they install the canonical ClawHub skill `ai-product-manager`.
 
 ## Auto Maintenance

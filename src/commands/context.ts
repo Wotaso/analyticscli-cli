@@ -3,6 +3,7 @@ import type { OutputFormat } from '../types.js';
 
 export type RootCliOptions = {
   apiUrl?: string;
+  accessToken?: string;
   token?: string;
   project?: string;
   format: OutputFormat;

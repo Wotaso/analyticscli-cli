@@ -191,13 +191,20 @@ program
   .name('analyticscli')
   .description('Agent-friendly AnalyticsCLI CLI')
   .option('--api-url <url>', 'API base URL')
-  .option('--token <token>', 'Override auth token for this call')
+  .option('--access-token <token>', 'Override access token for this call')
+  .option('--token <token>', 'Legacy alias for --access-token')
   .option('--project <id>', 'Default project ID for this command invocation')
   .option('--format <format>', 'Output format json|text', 'json')
   .option('--include-debug', 'Use debug-only events (exclude release/production events)', false)
   .option('--quiet', 'Reduce text output noise', false);
 
-const getRootOptions = (): RootCliOptions => program.opts<RootCliOptions>();
+const getRootOptions = (): RootCliOptions => {
+  const options = program.opts<RootCliOptions>();
+  return {
+    ...options,
+    token: options.accessToken?.trim() || options.token?.trim(),
+  };
+};
 const includeDebugFlag = (): boolean => Boolean(getRootOptions().includeDebug);
 const resolveProjectId = async (projectOption?: string): Promise<string> => {
   const root = getRootOptions();
