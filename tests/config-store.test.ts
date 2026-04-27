@@ -92,6 +92,23 @@ test('readConfig falls back to defaults for invalid field types', async () => {
   assert.match(config.updatedAt, /T/);
 });
 
+test('readConfig ignores legacy local default api URL from old config files', async () => {
+  await removeConfigFile();
+  await mkdir(dirname(store.configPath), { recursive: true });
+  await writeFile(
+    store.configPath,
+    JSON.stringify({
+      apiUrl: 'http://localhost:4000',
+      updatedAt: '2026-03-20T13:00:00.000Z',
+    }),
+    'utf8',
+  );
+
+  const config = await store.readConfig();
+  assert.equal(config.apiUrl, undefined);
+  assert.equal(store.resolveApiUrl(config), TEST_API_URL);
+});
+
 test('writeConfigValue and auth token helpers persist expected config shape', async () => {
   await removeConfigFile();
 

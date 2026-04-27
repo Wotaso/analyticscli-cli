@@ -24,7 +24,8 @@ const normalizePersistedApiUrl = (value: unknown): string | undefined => {
 
   const apiUrl = value.trim().replace(/\/$/, '');
   const defaultApiUrl = env.ANALYTICSCLI_API_URL.replace(/\/$/, '');
-  return apiUrl && apiUrl !== defaultApiUrl ? apiUrl : undefined;
+  const legacyLocalDefaultApiUrl = 'http://localhost:4000';
+  return apiUrl && apiUrl !== defaultApiUrl && apiUrl !== legacyLocalDefaultApiUrl ? apiUrl : undefined;
 };
 
 const resolveConfigPath = (): string => {
