@@ -8,7 +8,7 @@ const optionalUrlEnv = z.preprocess((value) => {
 }, z.string().url().optional());
 
 const cliSchema = z.object({
-  ANALYTICSCLI_API_URL: z.string().url().default('http://localhost:4000'),
+  ANALYTICSCLI_API_URL: z.string().url().default('https://api.analyticscli.com'),
   ANALYTICSCLI_CONFIG_DIR: z.string().optional(),
   ANALYTICSCLI_ACCESS_TOKEN: z.string().min(1).optional(),
   ANALYTICSCLI_CLI_ENABLE_WRITE_COMMANDS: z
