@@ -12,7 +12,7 @@ import {
   SKILL_SYNC_TIMEOUT_MS,
   SKILLS_PUBLIC_REPO_SLUG,
 } from './constants.js';
-import { configPath, persistAuthToken, readConfig, resolveAuthToken, writeConfigValue } from './config-store.js';
+import { configPath, persistAuthToken, readConfig, resolveApiUrl, resolveAuthToken, writeConfigValue } from './config-store.js';
 import { isCommandAvailable, runCommand } from './shell.js';
 import type {
   OutputFormat,
@@ -203,7 +203,7 @@ export const runSetupFlow = async (
   options: SetupExecutionOptions,
 ): Promise<SetupExecutionResult> => {
   const initialConfig = await readConfig();
-  const apiUrl = (root.apiUrl ?? initialConfig.apiUrl).replace(/\/$/, '');
+  const apiUrl = resolveApiUrl(initialConfig, root.apiUrl);
   const skillResults = options.skipSkills ? [] : installAgentSkills(options.agents);
 
   let activeConfig = initialConfig;
@@ -216,7 +216,7 @@ export const runSetupFlow = async (
     const providedToken = options.accessToken?.trim() || root.accessToken?.trim();
 
     if (providedToken) {
-      const persisted = await persistAuthToken(activeConfig, apiUrl, providedToken);
+      const persisted = await persistAuthToken(activeConfig, root.apiUrl ?? activeConfig.apiUrl, providedToken);
       activeConfig = persisted.config;
       loginResult = {
         ok: true,
@@ -232,7 +232,7 @@ export const runSetupFlow = async (
     } else {
       throw Object.assign(
         new Error(
-          'Provide --access-token for setup login, or pass --skip-login if you want skills only.',
+          'Provide --readonly-token for setup login, or pass --skip-login if you want skills only.',
         ),
         { exitCode: 2 },
       );
@@ -241,9 +241,10 @@ export const runSetupFlow = async (
 
   const now = new Date().toISOString();
   const autoSkillUpdateEnabled = options.autoSkillUpdate !== false;
+  const persistedApiUrl = root.apiUrl?.trim().replace(/\/$/, '') || activeConfig.apiUrl?.trim().replace(/\/$/, '');
   const finalConfig = {
     ...activeConfig,
-    apiUrl,
+    ...(persistedApiUrl ? { apiUrl: persistedApiUrl } : {}),
     setupAgents: options.skipSkills ? activeConfig.setupAgents : normalizeConfiguredAgents(options.agents),
     skillAutoUpdate: autoSkillUpdateEnabled,
     setupCompletedAt: activeConfig.setupCompletedAt ?? now,

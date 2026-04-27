@@ -4,6 +4,7 @@ import type { OutputFormat } from '../types.js';
 export type RootCliOptions = {
   apiUrl?: string;
   accessToken?: string;
+  readonlyToken?: string;
   project?: string;
   format: OutputFormat;
   includeDebug?: boolean;

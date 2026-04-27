@@ -1,4 +1,4 @@
-import { readConfig, resolveAuthToken } from './config-store.js';
+import { readConfig, resolveApiUrl, resolveAuthToken } from './config-store.js';
 import type { ClientOptions, CollectClientOptions } from './types.js';
 
 export const mapStatusToExitCode = (status: number): number => {
@@ -13,6 +13,40 @@ export const mapStatusToExitCode = (status: number): number => {
   return 4;
 };
 
+const errorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
+const createNetworkError = (url: string, error: unknown): Error & { exitCode?: number; payload?: unknown } => {
+  const cause =
+    error instanceof Error && 'cause' in error && error.cause
+      ? errorMessage(error.cause)
+      : undefined;
+  const detail = cause ? `${errorMessage(error)} (${cause})` : errorMessage(error);
+  const message = `Could not reach AnalyticsCLI API at ${url}: ${detail}`;
+  const typed = new Error(message) as Error & { exitCode?: number; payload?: unknown };
+  typed.exitCode = 4;
+  typed.payload = {
+    error: {
+      code: 'NETWORK_ERROR',
+      message,
+      ...(cause ? { cause } : {}),
+    },
+  };
+  return typed;
+};
+
+const fetchWithNetworkError = async (url: string, init: RequestInit): Promise<Response> => {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    throw createNetworkError(url, error);
+  }
+};
+
 export const requestApi = async (
   method: 'GET' | 'POST',
   path: string,
@@ -20,10 +54,11 @@ export const requestApi = async (
   options: ClientOptions,
 ): Promise<unknown> => {
   const config = await readConfig();
-  const apiUrl = (options.apiUrl ?? config.apiUrl).replace(/\/$/, '');
+  const apiUrl = resolveApiUrl(config, options.apiUrl);
   const token = resolveAuthToken(config, options.token);
+  const url = `${apiUrl}${path}`;
 
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetchWithNetworkError(url, {
     method,
     headers: {
       'content-type': 'application/json',
@@ -45,10 +80,11 @@ export const requestCsvExport = async (
   options: ClientOptions,
 ): Promise<{ csv: string; filename: string }> => {
   const config = await readConfig();
-  const apiUrl = (options.apiUrl ?? config.apiUrl).replace(/\/$/, '');
+  const apiUrl = resolveApiUrl(config, options.apiUrl);
   const token = resolveAuthToken(config, options.token);
+  const url = `${apiUrl}${path}`;
 
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetchWithNetworkError(url, {
     method: 'GET',
     headers: {
       ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -72,10 +108,11 @@ export const requestFileDownload = async (
   options: ClientOptions,
 ): Promise<{ body: ReadableStream<Uint8Array>; filename: string }> => {
   const config = await readConfig();
-  const apiUrl = (options.apiUrl ?? config.apiUrl).replace(/\/$/, '');
+  const apiUrl = resolveApiUrl(config, options.apiUrl);
   const token = resolveAuthToken(config, options.token);
+  const url = `${apiUrl}${path}`;
 
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetchWithNetworkError(url, {
     method: 'GET',
     headers: {
       ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -108,7 +145,8 @@ export const requestCollect = async (
   options: CollectClientOptions,
 ): Promise<unknown> => {
   const endpoint = options.endpoint.replace(/\/$/, '');
-  const response = await fetch(`${endpoint}${path}`, {
+  const url = `${endpoint}${path}`;
+  const response = await fetchWithNetworkError(url, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',

@@ -122,7 +122,7 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
           const token = (payload as { token?: unknown }).token;
           if (typeof token === 'string') {
             const current = await readConfig();
-            await persistAuthToken(current, (root.apiUrl ?? current.apiUrl).replace(/\/$/, ''), token);
+            await persistAuthToken(current, root.apiUrl ?? current.apiUrl, token);
           }
 
           print(root.format, payload);

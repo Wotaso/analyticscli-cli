@@ -1,5 +1,5 @@
 export type CliConfig = {
-  apiUrl: string;
+  apiUrl?: string;
   token?: string;
   tokenStorage?: 'config_file' | 'system_keychain';
   selectedProjectId?: string;

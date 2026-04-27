@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mapStatusToExitCode, requestCollect, requestFileDownload } from '../src/http.js';
+import { mapStatusToExitCode, requestApi, requestCollect, requestFileDownload } from '../src/http.js';
 
 test('mapStatusToExitCode maps auth/client/server failures to expected exit codes', () => {
   assert.equal(mapStatusToExitCode(401), 3);
@@ -84,6 +84,41 @@ test('requestCollect handles non-JSON error responses gracefully', async () => {
         const typed = error as Error & { exitCode?: number };
         assert.match(typed.message, /Request failed with status 500/);
         assert.equal(typed.exitCode, 4);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('requestApi reports network failures with endpoint context', async () => {
+  const originalFetch = globalThis.fetch;
+  const fetchError = Object.assign(new TypeError('fetch failed'), {
+    cause: new Error('getaddrinfo ENOTFOUND api.analyticscli.com'),
+  });
+  globalThis.fetch = (async () => {
+    throw fetchError;
+  }) as typeof globalThis.fetch;
+
+  try {
+    await assert.rejects(
+      requestApi('GET', '/v1/projects', undefined, {
+        apiUrl: 'https://api.analyticscli.com',
+        token: 'token',
+      }),
+      (error: unknown) => {
+        const typed = error as Error & { exitCode?: number; payload?: unknown };
+        assert.equal(typed.exitCode, 4);
+        assert.match(typed.message, /Could not reach AnalyticsCLI API/);
+        assert.match(typed.message, /https:\/\/api\.analyticscli\.com\/v1\/projects/);
+        assert.deepEqual(typed.payload, {
+          error: {
+            code: 'NETWORK_ERROR',
+            message: typed.message,
+            cause: 'getaddrinfo ENOTFOUND api.analyticscli.com',
+          },
+        });
         return true;
       },
     );

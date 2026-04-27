@@ -21,7 +21,8 @@ test('readConfig returns defaults when config file does not exist', async () => 
   await removeConfigFile();
 
   const config = await store.readConfig();
-  assert.equal(config.apiUrl, TEST_API_URL);
+  assert.equal(config.apiUrl, undefined);
+  assert.equal(store.resolveApiUrl(config), TEST_API_URL);
   assert.equal(config.skillAutoUpdate, false);
   assert.match(config.updatedAt, /T/);
 });
@@ -82,7 +83,8 @@ test('readConfig falls back to defaults for invalid field types', async () => {
   );
 
   const config = await store.readConfig();
-  assert.equal(config.apiUrl, TEST_API_URL);
+  assert.equal(config.apiUrl, undefined);
+  assert.equal(store.resolveApiUrl(config), TEST_API_URL);
   assert.equal(config.token, undefined);
   assert.equal(config.tokenStorage, undefined);
   assert.equal(config.skillAutoUpdate, false);
@@ -106,4 +108,5 @@ test('writeConfigValue and auth token helpers persist expected config shape', as
 
   assert.equal(store.resolveAuthToken(baseConfig, 'override-token'), 'override-token');
   assert.equal(store.resolveAuthToken(baseConfig), 'fallback-token');
+  assert.equal(store.resolveApiUrl(baseConfig, 'https://api.override.example/'), 'https://api.override.example');
 });

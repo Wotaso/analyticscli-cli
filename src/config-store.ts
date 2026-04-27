@@ -17,6 +17,16 @@ const normalizeSetupAgents = (value: unknown): CliConfig['setupAgents'] | undefi
   return deduped.length > 0 ? deduped : undefined;
 };
 
+const normalizePersistedApiUrl = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const apiUrl = value.trim().replace(/\/$/, '');
+  const defaultApiUrl = env.ANALYTICSCLI_API_URL.replace(/\/$/, '');
+  return apiUrl && apiUrl !== defaultApiUrl ? apiUrl : undefined;
+};
+
 const resolveConfigPath = (): string => {
   if (env.ANALYTICSCLI_CONFIG_DIR) {
     return join(env.ANALYTICSCLI_CONFIG_DIR, 'config.json');
@@ -36,7 +46,7 @@ export const readConfig = async (): Promise<CliConfig> => {
         ? parsed.suppressedCliUpdateVersion
         : undefined;
     return {
-      apiUrl: typeof parsed.apiUrl === 'string' ? parsed.apiUrl : env.ANALYTICSCLI_API_URL,
+      apiUrl: normalizePersistedApiUrl(parsed.apiUrl),
       token: typeof parsed.token === 'string' ? parsed.token : env.ANALYTICSCLI_ACCESS_TOKEN,
       tokenStorage:
         parsed.tokenStorage === 'system_keychain' || parsed.tokenStorage === 'config_file'
@@ -59,7 +69,6 @@ export const readConfig = async (): Promise<CliConfig> => {
     };
   } catch {
     return {
-      apiUrl: env.ANALYTICSCLI_API_URL,
       token: env.ANALYTICSCLI_ACCESS_TOKEN,
       skillAutoUpdate: false,
       updatedAt: new Date().toISOString(),
@@ -125,7 +134,7 @@ const writeTokenToSystemStore = (token: string): boolean => {
   if (process.platform === 'linux') {
     const result = runCommand(
       'secret-tool',
-      ['store', '--label', 'AnalyticsCLI access token', 'service', KEYCHAIN_SERVICE, 'account', KEYCHAIN_ACCOUNT],
+      ['store', '--label', 'AnalyticsCLI readonly token', 'service', KEYCHAIN_SERVICE, 'account', KEYCHAIN_ACCOUNT],
       { input: token, timeoutMs: 5000 },
     );
     return result.ok;
@@ -149,16 +158,21 @@ export const resolveAuthToken = (config: CliConfig, overrideToken?: string): str
   return config.token;
 };
 
+export const resolveApiUrl = (config: CliConfig, overrideApiUrl?: string): string => {
+  return (overrideApiUrl?.trim() || config.apiUrl || env.ANALYTICSCLI_API_URL).replace(/\/$/, '');
+};
+
 export const persistAuthToken = async (
   baseConfig: CliConfig,
-  apiUrl: string,
+  apiUrl: string | undefined,
   token: string,
 ): Promise<{ config: CliConfig; storage: 'config_file' | 'system_keychain' }> => {
   const useSystemStore = writeTokenToSystemStore(token);
   const storage: 'config_file' | 'system_keychain' = useSystemStore ? 'system_keychain' : 'config_file';
+  const normalizedApiUrl = normalizePersistedApiUrl(apiUrl);
   const nextConfig: CliConfig = {
     ...baseConfig,
-    apiUrl,
+    apiUrl: normalizedApiUrl,
     token: storage === 'config_file' ? token : undefined,
     tokenStorage: storage,
     updatedAt: new Date().toISOString(),

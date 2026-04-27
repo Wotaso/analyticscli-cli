@@ -43,7 +43,7 @@ npm install -g @analyticscli/cli@preview
 
 You need:
 
-- an `access_token` (private read-only CLI scope)
+- a `readonly_token` (private read-only CLI scope)
 - a `project_id` (from `analyticscli projects list`)
 
 Interactive setup (recommended):
@@ -55,7 +55,7 @@ npx @analyticscli/cli@preview onboard
 Non-interactive login:
 
 ```bash
-npx @analyticscli/cli@preview login --access-token <access_token>
+npx @analyticscli/cli@preview login --readonly-token <readonly_token>
 ```
 
 Then run your first queries:
@@ -138,15 +138,15 @@ analyticscli timeseries --project <project_id> --metric event_count --last 7d --
 
 Global options available on all commands:
 
-- `--api-url <url>` override API base URL
-- `--access-token <token>` override stored token for one command
+- `--api-url <url>` override API base URL for staging/local development
+- `--readonly-token <token>` override stored readonly token for one command
 - `--format json|text` choose output mode
 - `--include-debug` include debug/dev data on supported reads
 - `--quiet` reduce text output noise
 
 ## Authentication Notes
 
-- `access_token` is the canonical name for CLI/query/export usage.
+- `readonly_token` is the canonical name for CLI/query/export usage.
 - It is different from the publishable SDK key used for event ingestion.
 - `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` for Codex/Claude Code. When `--agents openclaw` is selected, they install the canonical ClawHub skill `ai-product-manager`.
 

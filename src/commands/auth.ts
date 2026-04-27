@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 import { print } from '../analytics-utils.js';
-import { configPath, persistAuthToken, readConfig, resolveAuthToken } from '../config-store.js';
+import { configPath, persistAuthToken, readConfig, resolveApiUrl, resolveAuthToken } from '../config-store.js';
 import { CLAWHUB_SITE_URL } from '../constants.js';
 import { isCommandAvailable, openExternalUrl } from '../shell.js';
 import {
@@ -14,31 +14,39 @@ import {
 import type { SetupAgent } from '../types.js';
 import type { CliCommandContext } from './context.js';
 
+type TokenOptionInput = {
+  readonlyToken?: string;
+};
+
+const resolveProvidedToken = (options: TokenOptionInput, rootToken?: string): string | undefined =>
+  (options.readonlyToken ?? rootToken)?.trim() || undefined;
+
 export const registerAuthCommands = (context: CliCommandContext): void => {
   const { program, withErrorHandling, getRootOptions } = context;
 
   program
     .command('login')
-    .description('Store an access token for CLI/API access')
-    .option('--access-token <token>', 'Access token to store directly')
-    .action(async (options: { accessToken?: string }) => {
+    .description('Store a readonly token for CLI/API access')
+    .option('--readonly-token <token>', 'Readonly token to store directly')
+    .action(async (options: TokenOptionInput) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const config = await readConfig();
-        const apiUrl = (root.apiUrl ?? config.apiUrl).replace(/\/$/, '');
+        const apiUrl = resolveApiUrl(config, root.apiUrl);
 
-        const directToken = options.accessToken?.trim() ?? root.accessToken?.trim();
+        const directToken = resolveProvidedToken(options, root.accessToken);
 
         if (!directToken) {
-          throw Object.assign(new Error('Provide --access-token'), { exitCode: 2 });
+          throw Object.assign(new Error('Provide --readonly-token'), { exitCode: 2 });
         }
 
         const now = new Date().toISOString();
-        const persisted = await persistAuthToken(config, apiUrl, directToken);
+        const persisted = await persistAuthToken(config, root.apiUrl ?? config.apiUrl, directToken);
 
         print(root.format, {
           ok: true,
           mode: 'provided_token',
+          apiUrl,
           tokenStorage: persisted.storage,
           configPath,
           updatedAt: now,
@@ -48,15 +56,15 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('setup')
-    .description('One-time setup: install skills, optionally persist an access token, and enable optional auto skill refresh')
-    .option('--access-token <token>', 'Access token to persist during setup')
+    .description('One-time setup: install skills, optionally persist a readonly token, and enable optional auto skill refresh')
+    .option('--readonly-token <token>', 'Readonly token to persist during setup')
     .option('--skip-login', 'Skip login step', false)
     .option('--skip-skills', 'Skip skill installation step', false)
     .option('--agents <targets>', 'all|codex|claude|openclaw (comma-separated)', 'all')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
-        accessToken?: string;
+        readonlyToken?: string;
         skipLogin?: boolean;
         skipSkills?: boolean;
         agents?: string;
@@ -66,7 +74,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           const root = getRootOptions();
           const agents = parseSetupAgents(String(options.agents ?? 'all'));
           const result = await runSetupFlow(root, {
-            accessToken: options.accessToken,
+            accessToken: resolveProvidedToken(options),
             skipLogin: options.skipLogin,
             skipSkills: options.skipSkills,
             agents,
@@ -85,12 +93,12 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('onboard')
-    .description('Interactive onboarding: choose skill install targets and optionally store an access token')
-    .option('--access-token <token>', 'Access token to persist during onboarding')
+    .description('Interactive onboarding: choose skill install targets and optionally store a readonly token')
+    .option('--readonly-token <token>', 'Readonly token to persist during onboarding')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
-        accessToken?: string;
+        readonlyToken?: string;
         autoSkillUpdate?: boolean;
       }) => {
         await withErrorHandling(async () => {
@@ -106,7 +114,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
           }
 
           const selectedAgents: SetupAgent[] = [];
-          let accessToken = options.accessToken?.trim();
+          let accessToken = resolveProvidedToken(options);
           let skipLogin = false;
           let autoSkillUpdate = options.autoSkillUpdate;
           const rl = createInterface({
@@ -162,7 +170,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
               const loginMode = await promptLoginMode(rl, hasExistingToken);
 
               if (loginMode === 'provided') {
-                accessToken = await promptRequiredValue(rl, 'Enter access token:');
+                accessToken = await promptRequiredValue(rl, 'Enter readonly token:');
               } else if (loginMode === 'skip') {
                 skipLogin = true;
               }

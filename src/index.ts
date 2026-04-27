@@ -17,7 +17,7 @@ import {
   SELF_TRACKING_ENABLED,
   env,
 } from './constants.js';
-import { readConfig, resolveAuthToken } from './config-store.js';
+import { readConfig, resolveApiUrl, resolveAuthToken } from './config-store.js';
 import { resolveProjectId as resolveProjectIdWithFallback } from './project-selection.js';
 import { maybeAutoRefreshSkills, maybeNotifyCliUpdate } from './setup.js';
 
@@ -102,7 +102,7 @@ const sendApiSelfTrackingEvent = async (
     return;
   }
 
-  const apiUrl = (options.apiUrl?.trim() || config.apiUrl || env.ANALYTICSCLI_API_URL).replace(/\/$/, '');
+  const apiUrl = resolveApiUrl(config, options.apiUrl);
   const projectId =
     options.projectId?.trim() ||
     env.ANALYTICSCLI_SELF_TRACKING_PROJECT_ID?.trim() ||
@@ -190,8 +190,8 @@ const program = new Command();
 program
   .name('analyticscli')
   .description('Agent-friendly AnalyticsCLI CLI')
-  .option('--api-url <url>', 'API base URL')
-  .option('--access-token <token>', 'Override access token for this call')
+  .option('--api-url <url>', 'Override API base URL for staging/local development')
+  .option('--readonly-token <token>', 'Override readonly token for this call')
   .option('--project <id>', 'Default project ID for this command invocation')
   .option('--format <format>', 'Output format json|text', 'json')
   .option('--include-debug', 'Use debug-only events (exclude release/production events)', false)
@@ -201,7 +201,7 @@ const getRootOptions = (): RootCliOptions => {
   const options = program.opts<RootCliOptions>();
   return {
     ...options,
-    accessToken: options.accessToken?.trim(),
+    accessToken: options.readonlyToken?.trim(),
   };
 };
 const includeDebugFlag = (): boolean => Boolean(getRootOptions().includeDebug);
