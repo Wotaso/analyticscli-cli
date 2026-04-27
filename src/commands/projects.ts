@@ -48,12 +48,13 @@ export const registerProjectCommands = (context: CliCommandContext): void => {
 
   projects
     .command('select')
+    .argument('[project]', 'Project ID to set directly without interactive picker')
     .description('Select and persist default project (arrow keys in interactive terminal)')
     .option('--project <id>', 'Project ID to set directly without interactive picker')
-    .action(async (options: { project?: string }) => {
+    .action(async (projectArg: string | undefined, options: { project?: string }) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
-        const providedProject = options.project?.trim();
+        const providedProject = options.project?.trim() || projectArg?.trim() || root.project?.trim();
 
         if (providedProject) {
           await setSelectedProjectId(providedProject);
