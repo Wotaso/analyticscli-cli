@@ -1,6 +1,6 @@
 {
   "name": "@analyticscli/cli",
-  "version": "0.1.2-preview.2",
+  "version": "0.1.2-preview.3",
   "description": "Agent-friendly CLI for AnalyticsCLI analytics queries, exports, feedback and event ingestion.",
   "license": "MIT",
   "type": "module",
@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
+    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "test": "tsx --test tests/**/*.test.ts",
