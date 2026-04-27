@@ -127,6 +127,36 @@ test('requestApi reports network failures with endpoint context', async () => {
   }
 });
 
+test('requestApi reports network failures without nested cause', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new TypeError('fetch failed');
+  }) as typeof globalThis.fetch;
+
+  try {
+    await assert.rejects(
+      requestApi('GET', '/v1/projects', undefined, {
+        apiUrl: 'https://api.analyticscli.com',
+        token: 'token',
+      }),
+      (error: unknown) => {
+        const typed = error as Error & { exitCode?: number; payload?: unknown };
+        assert.equal(typed.exitCode, 4);
+        assert.match(typed.message, /Could not reach AnalyticsCLI API/);
+        assert.deepEqual(typed.payload, {
+          error: {
+            code: 'NETWORK_ERROR',
+            message: typed.message,
+          },
+        });
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('requestFileDownload returns filename and body stream for successful downloads', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => {
