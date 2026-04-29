@@ -82,6 +82,9 @@ const summarizeRuns = (
     .join('; ');
 };
 
+const isClawHubSuspiciousSkillFailure = (output: string): boolean =>
+  /Use --force to install suspicious skills in non-interactive mode|Already installed: .*use --force/i.test(output);
+
 export const parseSetupAgents = (value: string): SetupAgent[] => {
   const normalized = value
     .split(',')
@@ -155,9 +158,15 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
       });
     } else {
       const installs = ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES.map((skillName) => {
-        const install = runCommand(invoker.command, [...invoker.prefix, 'install', skillName], {
+        let install = runCommand(invoker.command, [...invoker.prefix, 'install', skillName], {
           timeoutMs: 120_000,
         });
+        const installOutput = `${install.stderr}\n${install.stdout}`;
+        if (!install.ok && isClawHubSuspiciousSkillFailure(installOutput)) {
+          install = runCommand(invoker.command, [...invoker.prefix, 'install', skillName, '--force'], {
+            timeoutMs: 120_000,
+          });
+        }
         return {
           name: skillName,
           ok: install.ok,
