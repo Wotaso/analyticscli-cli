@@ -67,7 +67,9 @@ const parseEnumOption = <T extends readonly string[]>(
 ): T[number] => {
   const normalized = normalizeOptionString(value);
   if (!normalized || !allowed.includes(normalized as T[number])) {
-    throw Object.assign(new Error(`${optionName} must be one of: ${allowed.join(', ')}`), { exitCode: 2 });
+    throw Object.assign(new Error(`${optionName} must be one of: ${allowed.join(', ')}`), {
+      exitCode: 2,
+    });
   }
   return normalized as T[number];
 };
@@ -85,10 +87,9 @@ const parseGenericGroupByOption = (value: unknown): Array<(typeof GENERIC_DIMENS
     (dimension) => !(GENERIC_DIMENSIONS as readonly string[]).includes(dimension),
   );
   if (invalid) {
-    throw Object.assign(
-      new Error(`--group-by contains unsupported dimension "${invalid}"`),
-      { exitCode: 2 },
-    );
+    throw Object.assign(new Error(`--group-by contains unsupported dimension "${invalid}"`), {
+      exitCode: 2,
+    });
   }
 
   if (dimensions.includes('day') && dimensions.includes('hour')) {
@@ -100,7 +101,9 @@ const parseGenericGroupByOption = (value: unknown): Array<(typeof GENERIC_DIMENS
   return dimensions as Array<(typeof GENERIC_DIMENSIONS)[number]>;
 };
 
-const parseGenericRuntimeEnvsOption = (value: unknown): Array<(typeof GENERIC_RUNTIME_ENVS)[number]> => {
+const parseGenericRuntimeEnvsOption = (
+  value: unknown,
+): Array<(typeof GENERIC_RUNTIME_ENVS)[number]> => {
   if (typeof value !== 'string' || value.trim().length === 0) {
     return [];
   }
@@ -109,12 +112,13 @@ const parseGenericRuntimeEnvsOption = (value: unknown): Array<(typeof GENERIC_RU
     minItems: 1,
     maxItems: 4,
   }).map((entry) => entry.toLowerCase());
-  const invalid = values.find((entry) => !(GENERIC_RUNTIME_ENVS as readonly string[]).includes(entry));
+  const invalid = values.find(
+    (entry) => !(GENERIC_RUNTIME_ENVS as readonly string[]).includes(entry),
+  );
   if (invalid) {
-    throw Object.assign(
-      new Error(`--runtime-envs contains unsupported value "${invalid}"`),
-      { exitCode: 2 },
-    );
+    throw Object.assign(new Error(`--runtime-envs contains unsupported value "${invalid}"`), {
+      exitCode: 2,
+    });
   }
 
   return values as Array<(typeof GENERIC_RUNTIME_ENVS)[number]>;
@@ -161,7 +165,10 @@ export const registerAdvancedQueryCommands = (
     .option('--referrers <list>', 'Optional referrer filters, comma-separated')
     .option('--landing-paths <list>', 'Optional landing_path filters, comma-separated')
     .option('--countries <list>', 'Optional country filters, comma-separated')
-    .option('--runtime-envs <list>', `Optional runtimeEnv filters: ${GENERIC_RUNTIME_ENVS.join(',')}`)
+    .option(
+      '--runtime-envs <list>',
+      `Optional runtimeEnv filters: ${GENERIC_RUNTIME_ENVS.join(',')}`,
+    )
     .option('--limit <n>', 'Row limit (policy capped at 200)', '100')
     .option('--order-by <mode>', `Ordering: ${GENERIC_ORDER_BY.join('|')}`, 'value_desc')
     .option('--last <duration>', 'Time range like 7d', '7d')
@@ -219,7 +226,9 @@ export const registerAdvancedQueryCommands = (
           const projectSurfaces = parseCsvOption(options.projectSurfaces, '--project-surfaces', {
             maxItems: 20,
           });
-          const appVersions = parseCsvOption(options.appVersions, '--app-versions', { maxItems: 20 });
+          const appVersions = parseCsvOption(options.appVersions, '--app-versions', {
+            maxItems: 20,
+          });
           const utmSources = parseCsvOption(options.utmSources, '--utm-sources', { maxItems: 20 });
           const utmMediums = parseCsvOption(options.utmMediums, '--utm-mediums', { maxItems: 20 });
           const utmCampaigns = parseCsvOption(options.utmCampaigns, '--utm-campaigns', {
@@ -352,6 +361,11 @@ export const registerAdvancedQueryCommands = (
     .option('--active-event <name>', 'Optional active event filter (default: any event)')
     .option('--days <list>', 'Comma-separated day offsets, e.g. 1,7,30', '1,7,30')
     .option('--max-age-days <n>', 'Observation horizon in days for avg active span', '90')
+    .option(
+      '--identity-quality <mode>',
+      'Cohort identity filter: all or stable (stable excludes ephemeral/unknown SDK identities)',
+      'all',
+    )
     .option('--last <duration>', 'Cohort time range like 30d', '30d')
     .option('--app-version <version>', 'Filter by appVersion')
     .option('--flow-id <id>', 'Filter by onboardingFlowId')
@@ -374,6 +388,7 @@ export const registerAdvancedQueryCommands = (
           activeEvent?: string;
           days: string;
           maxAgeDays: string;
+          identityQuality: string;
         },
       ) => {
         await withErrorHandling(async () => {
@@ -381,6 +396,7 @@ export const registerAdvancedQueryCommands = (
           const projectId = await resolveProjectId(options.project);
           const days = parseRetentionDaysOption(options.days);
           const maxAgeDays = parseIntegerOption(options.maxAgeDays, '--max-age-days', 1, 365);
+          const identityQuality = options.identityQuality === 'stable' ? 'stable' : 'all';
 
           const payload = (await requestApi(
             'POST',
@@ -391,6 +407,7 @@ export const registerAdvancedQueryCommands = (
               activeEvent: options.activeEvent,
               days,
               maxAgeDays,
+              identityQuality,
               last: options.last,
               includeDebug: includeDebugFlag(),
               ...resolveFlowSelectorOption(options),
@@ -405,6 +422,21 @@ export const registerAdvancedQueryCommands = (
             cohortSize: number;
             avgActiveDays: number;
             maxAgeDays: number;
+            identityQuality?: 'all' | 'stable';
+            quality?: {
+              reliability: 'high' | 'medium' | 'low' | 'unknown';
+              stableIdentityUsers: number;
+              identifiedUsers: number;
+              persistentAnonymousUsers: number;
+              ephemeralIdentityUsers: number;
+              unknownIdentityUsers: number;
+              multiSessionUsers: number;
+              stableIdentityShare: number;
+              identifiedShare: number;
+              ephemeralIdentityShare: number;
+              multiSessionShare: number;
+              warnings: string[];
+            };
             days: Array<{ day: number; retainedUsers: number; retentionRate: number }>;
           };
 
@@ -417,7 +449,17 @@ export const registerAdvancedQueryCommands = (
               `matched records: ${matchedRecords}`,
               `cohort size: ${payload.cohortSize}`,
               `avg active days: ${payload.avgActiveDays}`,
-            ].join('\n');
+              `identity filter: ${payload.identityQuality ?? identityQuality}`,
+              payload.quality
+                ? `retention reliability: ${payload.quality.reliability} (${(
+                    payload.quality.stableIdentityShare * 100
+                  ).toFixed(1)}% stable identity, ${(
+                    payload.quality.multiSessionShare * 100
+                  ).toFixed(1)}% multi-session)`
+                : null,
+            ]
+              .filter(Boolean)
+              .join('\n');
             const table = renderTable(
               ['day', 'retained_users', 'retention_rate'],
               payload.days.map((row) => [
@@ -426,7 +468,10 @@ export const registerAdvancedQueryCommands = (
                 `${(row.retentionRate * 100).toFixed(2)}%`,
               ]),
             );
-            print('text', `${summary}\n\n${table}`);
+            const warnings = payload.quality?.warnings?.length
+              ? `\n\nWarnings:\n${payload.quality.warnings.map((warning) => `- ${warning}`).join('\n')}`
+              : '';
+            print('text', `${summary}\n\n${table}${warnings}`);
             return;
           }
 
