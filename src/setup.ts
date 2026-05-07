@@ -311,18 +311,27 @@ export const promptLoginMode = async (
   hasExistingToken: boolean,
 ): Promise<'provided' | 'existing' | 'skip'> => {
   while (true) {
-    process.stdout.write('\nLogin method:\n');
-    process.stdout.write('  1) Readonly token\n');
+    process.stdout.write('\nCLI query access\n');
+    process.stdout.write(
+      'AnalyticsCLI needs a readonly CLI token only when you want this machine to list projects or run queries.\n',
+    );
+    process.stdout.write(
+      'Get it from Dashboard -> API Keys. It is read-only and is not the SDK publishable ingest key.\n',
+    );
+    process.stdout.write('You can skip this now and run `analyticscli login` later.\n\n');
+    process.stdout.write('  1) Paste a new readonly CLI token\n');
     if (hasExistingToken) {
-      process.stdout.write('  2) Use existing token\n');
-      process.stdout.write('  3) Skip for now\n');
+      process.stdout.write('  2) Keep using the token already stored on this machine\n');
+      process.stdout.write('  3) Skip login for now (skills only)\n');
     } else {
-      process.stdout.write('  2) Skip for now\n');
+      process.stdout.write('  2) Skip login for now (skills only)\n');
     }
 
     const maxChoice = hasExistingToken ? 3 : 2;
     const defaultChoice = hasExistingToken ? '2' : '1';
-    const answer = (await rl.question(`Select [1-${maxChoice}] (default ${defaultChoice}): `)).trim();
+    const answer = (
+      await rl.question(`Choose query access [1-${maxChoice}] (default ${defaultChoice}): `)
+    ).trim();
     const choice = answer || defaultChoice;
 
     if (choice === '1') {

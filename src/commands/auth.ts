@@ -27,17 +27,35 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
   program
     .command('login')
     .description('Store a readonly token for CLI/API access')
-    .option('--readonly-token <token>', 'Readonly token to store directly')
+    .option('--readonly-token <token>', 'Readonly token to store directly (non-interactive)')
     .action(async (options: TokenOptionInput) => {
       await withErrorHandling(async () => {
         const root = getRootOptions();
         const config = await readConfig();
         const apiUrl = resolveApiUrl(config, root.apiUrl);
 
-        const directToken = resolveProvidedToken(options, root.accessToken);
+        let directToken = resolveProvidedToken(options, root.accessToken);
 
         if (!directToken) {
-          throw Object.assign(new Error('Provide --readonly-token'), { exitCode: 2 });
+          if (!process.stdin.isTTY || !process.stdout.isTTY) {
+            throw Object.assign(
+              new Error('Run `analyticscli login` in an interactive terminal or provide --readonly-token.'),
+              { exitCode: 2 },
+            );
+          }
+
+          const rl = createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          try {
+            directToken = await promptRequiredValue(
+              rl,
+              'Paste readonly CLI token from Dashboard -> API Keys:',
+            );
+          } finally {
+            rl.close();
+          }
         }
 
         const now = new Date().toISOString();
@@ -56,8 +74,8 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('setup')
-    .description('One-time setup: install skills, optionally persist a readonly token, and enable optional auto skill refresh')
-    .option('--readonly-token <token>', 'Readonly token to persist during setup')
+    .description('One-time setup: install skills, optionally persist a readonly CLI token, and enable optional auto skill refresh')
+    .option('--readonly-token <token>', 'Readonly CLI token to persist during setup')
     .option('--skip-login', 'Skip login step', false)
     .option('--skip-skills', 'Skip skill installation step', false)
     .option('--agents <targets>', 'all|codex|claude|openclaw (comma-separated)', 'all')
@@ -93,8 +111,8 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
   program
     .command('onboard')
-    .description('Interactive onboarding: choose skill install targets and optionally store a readonly token')
-    .option('--readonly-token <token>', 'Readonly token to persist during onboarding')
+    .description('Interactive onboarding: choose skill install targets and optionally connect CLI query access')
+    .option('--readonly-token <token>', 'Readonly CLI token to persist during onboarding')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
@@ -124,7 +142,9 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
           try {
             process.stdout.write('AnalyticsCLI onboarding\n');
-            process.stdout.write('This flow installs skills and configures login.\n\n');
+            process.stdout.write(
+              'This flow installs agent skills and can connect this CLI to your AnalyticsCLI account.\n\n',
+            );
 
             const installCodexClaude = await promptYesNo(
               rl,
@@ -137,7 +157,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
 
             const installOpenclaw = await promptYesNo(
               rl,
-              'Install the canonical ClawHub skill (`ai-product-manager`)?',
+              'Install the canonical OpenClaw Growth Engineer skill from ClawHub?',
               false,
             );
             if (installOpenclaw) {
@@ -170,7 +190,10 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
               const loginMode = await promptLoginMode(rl, hasExistingToken);
 
               if (loginMode === 'provided') {
-                accessToken = await promptRequiredValue(rl, 'Enter readonly token:');
+                accessToken = await promptRequiredValue(
+                  rl,
+                  'Paste readonly CLI token from Dashboard -> API Keys:',
+                );
               } else if (loginMode === 'skip') {
                 skipLogin = true;
               }

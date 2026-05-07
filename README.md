@@ -17,7 +17,7 @@ Available AnalyticsCLI skills:
 
 - [`analyticscli-cli`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/analyticscli-cli): CLI setup, auth, query workflows, exports
 - [`analyticscli-ts-sdk`](https://github.com/Wotaso/analyticscli-skills/tree/main/skills/analyticscli-ts-sdk): SDK integration/upgrades for JS/TS, React Native, Expo
-- ClawHub: `ai-product-manager` is the canonical published skill
+- ClawHub: `openclaw-growth-engineer` is the canonical published skill
 
 ## Run With npx
 
@@ -52,10 +52,12 @@ Interactive setup (recommended):
 npx @analyticscli/cli@preview onboard
 ```
 
-Non-interactive login:
+`onboard` installs agent skills and then asks whether to connect CLI query access. Paste a readonly CLI token from **Dashboard -> API Keys**, keep an existing stored token, or skip login and run `analyticscli login` later.
+
+Login only:
 
 ```bash
-npx @analyticscli/cli@preview login --readonly-token <readonly_token>
+npx @analyticscli/cli@preview login
 ```
 
 Then run your first queries:
@@ -148,7 +150,7 @@ Global options available on all commands:
 
 - `readonly_token` is the canonical name for CLI/query/export usage.
 - It is different from the publishable SDK key used for event ingestion.
-- `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` for Codex/Claude Code. When `--agents openclaw` is selected, they install the canonical ClawHub skill `ai-product-manager`.
+- `analyticscli setup` and `analyticscli onboard` can install `analyticscli-cli` and `analyticscli-ts-sdk` for Codex/Claude Code. When `--agents openclaw` is selected, they install the canonical ClawHub skill `openclaw-growth-engineer`.
 
 ## Auto Maintenance
 
