@@ -122,6 +122,22 @@ analyticscli events export-range --project <project_id> --last 90d --out ./event
 ANALYTICSCLI_CLI_ENABLE_WRITE_COMMANDS=true analyticscli feedback submit --message "Session detail view needs raw JSON" --category feature --context "dashboard/settings"
 ```
 
+## Optional CLI Self-Tracking
+
+CLI self-tracking is disabled by default and is intended for internal dogfooding only:
+
+```bash
+ANALYTICSCLI_SELF_TRACKING_ENABLED=true analyticscli projects list
+```
+
+When enabled, the CLI sends command lifecycle events such as `cli:command_started`,
+`cli:command_succeeded`, and `cli:command_failed` to `/v1/telemetry/cli` using the
+current CLI bearer token. Keep payloads command-level only; do not include command
+arguments, query output, tokens, file paths, or exported data.
+
+For public developer installs, leave self-tracking off unless you provide clear
+notice and have a valid legal basis for the telemetry.
+
 ## Output Modes
 
 Use `--format json` for scripts/agents and `--format text` for local reading.

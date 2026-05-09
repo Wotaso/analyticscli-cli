@@ -59,6 +59,15 @@ const GENERIC_DIMENSIONS = [
 ] as const;
 const GENERIC_ORDER_BY = ['value_desc', 'value_asc', 'dimension_asc', 'dimension_desc'] as const;
 const GENERIC_RUNTIME_ENVS = ['production', 'development', 'test', 'staging'] as const;
+const ACQUISITION_DIMENSIONS = [
+  'utmSource',
+  'utmMedium',
+  'utmCampaign',
+  'utmTerm',
+  'utmContent',
+  'referrer',
+  'landingPath',
+] as const;
 
 const parseEnumOption = <T extends readonly string[]>(
   value: unknown,
@@ -146,6 +155,108 @@ export const registerAdvancedQueryCommands = (
   context: CliCommandContext,
 ): void => {
   const { withErrorHandling, getRootOptions, includeDebugFlag, resolveProjectId } = context;
+
+  program
+    .command('acquisition')
+    .description('Website acquisition and UTM/referrer summary')
+    .option('--project <id>', 'Project ID (optional when a default project is selected)')
+    .option('--metric <metric>', `Metric: ${GENERIC_METRICS.join('|')}`, 'unique_sessions')
+    .option('--group-by <dimension>', `Dimension: ${ACQUISITION_DIMENSIONS.join('|')}`, 'utmSource')
+    .option('--events <list>', 'Event-name filters, comma-separated', 'page_view')
+    .option('--limit <n>', 'Row limit (policy capped at 200)', '50')
+    .option('--order-by <mode>', `Ordering: ${GENERIC_ORDER_BY.join('|')}`, 'value_desc')
+    .option('--last <duration>', 'Time range like 30d', '30d')
+    .option('--since <iso>', 'Optional ISO start timestamp (requires --until)')
+    .option('--until <iso>', 'Optional ISO end timestamp (requires --since)')
+    .option('--utm-source <value>', 'Flow selector: properties.utm_source')
+    .option('--utm-medium <value>', 'Flow selector: properties.utm_medium')
+    .option('--utm-campaign <value>', 'Flow selector: properties.utm_campaign')
+    .option('--utm-term <value>', 'Flow selector: properties.utm_term')
+    .option('--utm-content <value>', 'Flow selector: properties.utm_content')
+    .option('--referrer <value>', 'Flow selector: properties.referrer')
+    .option('--landing-path <value>', 'Flow selector: properties.landing_path')
+    .action(
+      async (
+        options: RootQueryOptions & {
+          metric: string;
+          groupBy: string;
+          events: string;
+          limit: string;
+          orderBy: string;
+          since?: string;
+          until?: string;
+        },
+      ) => {
+        await withErrorHandling(async () => {
+          const root = getRootOptions();
+          const projectId = await resolveProjectId(options.project);
+          const metric = parseEnumOption(options.metric, '--metric', GENERIC_METRICS);
+          const groupBy = parseEnumOption(options.groupBy, '--group-by', ACQUISITION_DIMENSIONS);
+          const orderBy = parseEnumOption(options.orderBy, '--order-by', GENERIC_ORDER_BY);
+          const limit = parseIntegerOption(options.limit, '--limit', 1, 200);
+          const eventNames = parseCsvOption(options.events, '--events', {
+            minItems: 1,
+            maxItems: 50,
+          });
+
+          const payload = (await requestApi(
+            'POST',
+            '/v1/query/generic',
+            {
+              ...resolveProjectOption(projectId),
+              metric,
+              groupBy: [groupBy],
+              limit,
+              orderBy,
+              includeDebug: includeDebugFlag(),
+              ...resolveGenericTimeRange(options),
+              filters: {
+                eventNames,
+              },
+              ...resolveFlowSelectorOption(options),
+            },
+            {
+              apiUrl: root.apiUrl,
+              token: root.accessToken,
+            },
+          )) as {
+            metric: string;
+            groupBy: string[];
+            limit: number;
+            orderBy: string;
+            rows: Array<{ dimensions: Record<string, string>; value: number }>;
+            plan: {
+              mode: 'raw' | 'aggregate';
+              source: string;
+              sourceUsed: string;
+              estimatedCost: 'low' | 'medium' | 'high';
+              reason: string;
+            };
+            timeRange: { since: string; until: string };
+          };
+
+          const matchedRecords = payload.rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+          if (root.format === 'text') {
+            const summary = [
+              `Acquisition (${payload.timeRange.since} -> ${payload.timeRange.until})`,
+              `metric: ${payload.metric}`,
+              `dimension: ${groupBy}`,
+              `events: ${eventNames.join(', ')}`,
+              `matched records: ${matchedRecords}`,
+              `rows: ${payload.rows.length}/${payload.limit}`,
+            ].join('\n');
+            const table = renderTable(
+              [groupBy, 'value'],
+              payload.rows.map((row) => [row.dimensions[groupBy] ?? '(unknown)', row.value]),
+            );
+            print('text', `${summary}\n\n${table}`);
+            return;
+          }
+
+          print(root.format, withMatchedRecords({ kind: 'acquisition', ...payload }, matchedRecords));
+        });
+      },
+    );
 
   program
     .command('generic')
