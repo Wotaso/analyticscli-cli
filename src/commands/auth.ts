@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import { print } from '../analytics-utils.js';
 import { configPath, persistAuthToken, readConfig, resolveApiUrl, resolveAuthToken } from '../config-store.js';
-import { CLAWHUB_SITE_URL } from '../constants.js';
+import { CLAWHUB_SITE_URL, OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG } from '../constants.js';
 import { isCommandAvailable, openExternalUrl } from '../shell.js';
 import {
   parseSetupAgents,
@@ -78,7 +78,7 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
     .option('--readonly-token <token>', 'Readonly CLI token to persist during setup')
     .option('--skip-login', 'Skip login step', false)
     .option('--skip-skills', 'Skip skill installation step', false)
-    .option('--agents <targets>', 'all|codex|claude|openclaw (comma-separated)', 'all')
+    .option('--agents <targets>', 'all|codex|claude|openclaw|hermes (comma-separated)', 'all')
     .option('--no-auto-skill-update', 'Disable daily skill refresh on CLI execution')
     .action(
       async (options: {
@@ -181,6 +181,20 @@ export const registerAuthCommands = (context: CliCommandContext): void => {
                     );
                   }
                 }
+              }
+            }
+
+            const installHermes = await promptYesNo(
+              rl,
+              'Install the same shared AI Growth Engineer skill for Hermes?',
+              false,
+            );
+            if (installHermes) {
+              selectedAgents.push('hermes');
+              if (!isCommandAvailable('hermes')) {
+                process.stdout.write(
+                  `\n\`hermes\` is not installed on this machine. After installing Hermes, run \`hermes skills install ${OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG}\`.\n`,
+                );
               }
             }
 

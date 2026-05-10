@@ -26,8 +26,8 @@ export type CollectClientOptions = {
   apiKey: string;
 };
 
-export type SetupAgent = 'codex' | 'claude' | 'openclaw';
-export type SkillInstallTarget = 'codex_claude' | 'openclaw';
+export type SetupAgent = 'codex' | 'claude' | 'openclaw' | 'hermes';
+export type SkillInstallTarget = 'codex_claude' | 'openclaw' | 'hermes';
 
 export type SkillInstallResult = {
   target: SkillInstallTarget;

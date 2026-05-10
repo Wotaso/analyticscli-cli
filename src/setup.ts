@@ -8,6 +8,7 @@ import {
   CLI_VERSION,
   CLI_VERSION_CHECK_INTERVAL_MS,
   CLI_VERSION_CHECK_TIMEOUT_MS,
+  OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG,
   SKILL_SYNC_INTERVAL_MS,
   SKILL_SYNC_TIMEOUT_MS,
   SKILLS_PUBLIC_REPO_SLUG,
@@ -27,7 +28,7 @@ import type {
 const formatCommand = (command: string, args: string[]) => `\`${[command, ...args].join(' ')}\``;
 
 const normalizeConfiguredAgents = (agents: SetupAgent[]): SetupAgent[] => {
-  const ordered: SetupAgent[] = ['codex', 'claude', 'openclaw'];
+  const ordered: SetupAgent[] = ['codex', 'claude', 'openclaw', 'hermes'];
   return ordered.filter((agent) => agents.includes(agent));
 };
 
@@ -92,14 +93,17 @@ export const parseSetupAgents = (value: string): SetupAgent[] => {
     .filter(Boolean);
 
   const wantsAll = normalized.length === 0 || normalized.includes('all');
-  const selected = wantsAll ? ['codex', 'claude', 'openclaw'] : normalized;
-  const allowed = new Set<SetupAgent>(['codex', 'claude', 'openclaw']);
+  const defaultAgents: SetupAgent[] = ['codex', 'claude', 'openclaw'];
+  const selected = wantsAll
+    ? [...defaultAgents, ...(normalized.includes('hermes') ? (['hermes'] as const) : [])]
+    : normalized;
+  const allowed = new Set<SetupAgent>(['codex', 'claude', 'openclaw', 'hermes']);
   const result: SetupAgent[] = [];
 
   for (const agent of selected) {
     if (!allowed.has(agent as SetupAgent)) {
       throw Object.assign(
-        new Error('Invalid --agents value. Use all|codex|claude|openclaw (comma-separated).'),
+        new Error('Invalid --agents value. Use all|codex|claude|openclaw|hermes (comma-separated).'),
         { exitCode: 2 },
       );
     }
@@ -183,6 +187,29 @@ export const installAgentSkills = (agents: SetupAgent[]): SkillInstallResult[] =
           installs,
           `Skill installed/updated via ${formatCommand(invoker.command, [...invoker.prefix, 'install', ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES[0]])}.`,
         ),
+      });
+    }
+  }
+
+  if (agents.includes('hermes')) {
+    if (!isCommandAvailable('hermes')) {
+      results.push({
+        target: 'hermes',
+        ok: false,
+        skipped: true,
+        detail: `\`hermes\` not available on this machine. Install Hermes first, then run ${formatCommand('hermes', ['skills', 'install', OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG])}.`,
+      });
+    } else {
+      const install = runCommand('hermes', ['skills', 'install', OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG], {
+        timeoutMs: 180_000,
+      });
+      results.push({
+        target: 'hermes',
+        ok: install.ok,
+        skipped: false,
+        detail: install.ok
+          ? `Skill installed/updated via ${formatCommand('hermes', ['skills', 'install', OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG])}.`
+          : install.stderr.trim() || install.stdout.trim() || 'Hermes skill install failed.',
       });
     }
   }

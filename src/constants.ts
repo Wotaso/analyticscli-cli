@@ -21,6 +21,7 @@ export const CLI_VERSION_CHECK_TIMEOUT_MS = 2500;
 export const SKILLS_PUBLIC_REPO_SLUG = 'wotaso/analyticscli-skills';
 export const SKILLS_PUBLIC_REPO_URL = `https://github.com/${SKILLS_PUBLIC_REPO_SLUG}`;
 export const OPENCLAW_GROWTH_SKILL_NAME = 'openclaw-growth-engineer' as const;
+export const OPENCLAW_GROWTH_SKILL_PUBLIC_REPO_SLUG = 'Wotaso/openclaw-growth-engineer-skill';
 export const ANALYTICSCLI_SETUP_SKILL_NAMES = ['analyticscli-cli', 'analyticscli-ts-sdk'] as const;
 export const ANALYTICSCLI_OPENCLAW_SETUP_SKILL_NAMES = [OPENCLAW_GROWTH_SKILL_NAME] as const;
 export const ANALYTICSCLI_AUTO_REFRESH_SKILL_NAMES = ['analyticscli-cli'] as const;

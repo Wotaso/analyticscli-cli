@@ -7,8 +7,14 @@ process.env.ANALYTICSCLI_API_URL = process.env.ANALYTICSCLI_API_URL || 'https://
 const { parseSetupAgents, promptLoginMode, resolveAutoRefreshSkillNames } = await import('../src/setup.js');
 
 test('parseSetupAgents keeps valid unique setup targets and expands all', () => {
-  assert.deepEqual(parseSetupAgents('openclaw,codex,openclaw,claude'), ['openclaw', 'codex', 'claude']);
+  assert.deepEqual(parseSetupAgents('openclaw,codex,openclaw,claude,hermes'), [
+    'openclaw',
+    'codex',
+    'claude',
+    'hermes',
+  ]);
   assert.deepEqual(parseSetupAgents('all'), ['codex', 'claude', 'openclaw']);
+  assert.deepEqual(parseSetupAgents('all,hermes'), ['codex', 'claude', 'openclaw', 'hermes']);
 });
 
 test('resolveAutoRefreshSkillNames keeps ClawHub-only skills out of GitHub skill refresh', () => {
