@@ -38,6 +38,9 @@ const resolveConfigPath = (): string => {
 
 export const configPath = resolveConfigPath();
 
+const readTokenFromEnv = (): string | undefined =>
+  env.ANALYTICSCLI_ACCESS_TOKEN?.trim() || env.ANALYTICSCLI_READONLY_TOKEN?.trim() || undefined;
+
 export const readConfig = async (): Promise<CliConfig> => {
   try {
     const raw = await readFile(configPath, 'utf8');
@@ -48,7 +51,7 @@ export const readConfig = async (): Promise<CliConfig> => {
         : undefined;
     return {
       apiUrl: normalizePersistedApiUrl(parsed.apiUrl),
-      token: typeof parsed.token === 'string' ? parsed.token : env.ANALYTICSCLI_ACCESS_TOKEN,
+      token: typeof parsed.token === 'string' ? parsed.token : undefined,
       tokenStorage:
         parsed.tokenStorage === 'system_keychain' || parsed.tokenStorage === 'config_file'
           ? parsed.tokenStorage
@@ -70,7 +73,7 @@ export const readConfig = async (): Promise<CliConfig> => {
     };
   } catch {
     return {
-      token: env.ANALYTICSCLI_ACCESS_TOKEN,
+      token: undefined,
       skillAutoUpdate: false,
       updatedAt: new Date().toISOString(),
     };
@@ -147,6 +150,11 @@ const writeTokenToSystemStore = (token: string): boolean => {
 export const resolveAuthToken = (config: CliConfig, overrideToken?: string): string | undefined => {
   if (overrideToken) {
     return overrideToken;
+  }
+
+  const tokenFromEnv = readTokenFromEnv();
+  if (tokenFromEnv) {
+    return tokenFromEnv;
   }
 
   if (config.tokenStorage === 'system_keychain') {

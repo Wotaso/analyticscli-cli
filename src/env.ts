@@ -11,6 +11,7 @@ const cliSchema = z.object({
   ANALYTICSCLI_API_URL: z.string().url().default('https://api.analyticscli.com'),
   ANALYTICSCLI_CONFIG_DIR: z.string().optional(),
   ANALYTICSCLI_ACCESS_TOKEN: z.string().min(1).optional(),
+  ANALYTICSCLI_READONLY_TOKEN: z.string().min(1).optional(),
   ANALYTICSCLI_CLI_ENABLE_WRITE_COMMANDS: z
     .enum(['true', 'false'])
     .optional()
