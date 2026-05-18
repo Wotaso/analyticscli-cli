@@ -231,6 +231,39 @@ export const registerOnboardingJourneyCommand = (
         };
 
         const completionFromStart = await queryConversion(ONBOARDING_START_EVENT, 'onboarding:complete');
+        const stepCoveragePayload = (await requestApi(
+          'POST',
+          '/v1/query/onboarding_step_coverage',
+          {
+            ...resolveProjectOption(projectId),
+            last: options.last,
+            within: options.within,
+            includeDebug: includeDebugFlag(),
+            ...(flowSelection ? { flow: flowSelection } : {}),
+          },
+          {
+            apiUrl: root.apiUrl,
+            token: root.accessToken,
+          },
+        ).catch(() => null)) as
+          | {
+              rows?: Array<{
+                eventName?: string;
+                stepKey?: string;
+                stepIndex?: number | null;
+                users?: number;
+              }>;
+            }
+          | null;
+        const stepCoverageRows = (stepCoveragePayload?.rows ?? [])
+          .map((row) => ({
+            eventName: row.eventName || (row.stepKey ? `onboarding:step_view:${row.stepKey}` : ''),
+            label: row.stepKey || row.eventName || '',
+            stepIndex: row.stepIndex ?? null,
+            users: Number(row.users ?? 0),
+            percentFromStart: toPercent(Number(row.users ?? 0), completionFromStart.totalFrom),
+          }))
+          .filter((row) => row.eventName && row.users > 0);
 
         const discoveredEventNames = (schemaPayload.items ?? [])
           .map((item) => (typeof item.eventName === 'string' ? item.eventName : ''))
@@ -248,12 +281,19 @@ export const registerOnboardingJourneyCommand = (
 
         const eventCandidates = [...new Set([
           ...ONBOARDING_CORE_EVENTS,
-          ...discoveredOnboardingScreens,
+          ...(stepCoverageRows.length > 0 ? [] : discoveredOnboardingScreens),
           ...PAYWALL_JOURNEY_EVENT_ORDER,
           ...PAYWALL_SKIP_EVENTS,
           ...PURCHASE_SUCCESS_EVENTS,
           ...discoveredJourneyEvents,
-        ])].filter((eventName) => eventName !== ONBOARDING_START_EVENT);
+        ])].filter(
+          (eventName) =>
+            eventName !== ONBOARDING_START_EVENT &&
+            (stepCoverageRows.length === 0 ||
+              (eventName !== 'onboarding:step_view' &&
+                eventName !== 'onboarding:step_complete' &&
+                !isOnboardingScreenEvent(eventName))),
+        );
 
         const eventConversions = await mapWithConcurrency(
           eventCandidates,
@@ -328,14 +368,24 @@ export const registerOnboardingJourneyCommand = (
           ]),
         );
 
-        const coverageRows = eventConversions
+        const coverageRows = [
+          ...stepCoverageRows,
+          ...eventConversions
           .map((row) => ({
             eventName: row.eventName,
             users: row.users,
             percentFromStart: toPercent(row.users, starters),
           }))
-          .filter((row) => row.users > 0 || eventOrder.has(row.eventName))
+          .filter((row) => row.users > 0 || eventOrder.has(row.eventName)),
+        ]
           .sort((a, b) => {
+            const aStepIndex = 'stepIndex' in a ? a.stepIndex : null;
+            const bStepIndex = 'stepIndex' in b ? b.stepIndex : null;
+            if (typeof aStepIndex === 'number' && typeof bStepIndex === 'number') {
+              return aStepIndex - bStepIndex;
+            }
+            if (typeof aStepIndex === 'number') return -1;
+            if (typeof bStepIndex === 'number') return 1;
             const aIdx = eventOrder.get(a.eventName) ?? -1;
             const bIdx = eventOrder.get(b.eventName) ?? -1;
             const aIsOrdered = aIdx >= 0;
@@ -394,7 +444,11 @@ export const registerOnboardingJourneyCommand = (
           }
           const table = renderTable(
             ['event', 'users', '%start'],
-            payload.coverageRows.map((row) => [row.eventName, row.users, `${row.percentFromStart}%`]),
+            payload.coverageRows.map((row) => [
+              'label' in row && typeof row.label === 'string' && row.label ? row.label : row.eventName,
+              row.users,
+              `${row.percentFromStart}%`,
+            ]),
           );
           print('text', `${summaryLines.join('\n')}\n\n${table}`);
           return;
