@@ -49,6 +49,7 @@ const GENERIC_DIMENSIONS = [
   'utmTerm',
   'utmContent',
   'referrer',
+  'referrerHost',
   'landingPath',
   'country',
   'region',
@@ -66,6 +67,7 @@ const ACQUISITION_DIMENSIONS = [
   'utmTerm',
   'utmContent',
   'referrer',
+  'referrerHost',
   'landingPath',
 ] as const;
 
