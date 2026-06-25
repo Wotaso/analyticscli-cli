@@ -13,7 +13,7 @@ export const env = readCliEnv();
 export const CLI_WRITE_COMMANDS_ENABLED = env.ANALYTICSCLI_CLI_ENABLE_WRITE_COMMANDS;
 export const CLI_DEV_COMMANDS_ENABLED = env.ANALYTICSCLI_CLI_ENABLE_DEV_COMMANDS;
 
-export const CLI_VERSION = '0.1.3-preview.0';
+export const CLI_VERSION = '0.1.3';
 export const SKILL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export const SKILL_SYNC_TIMEOUT_MS = 4000;
 export const CLI_VERSION_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;

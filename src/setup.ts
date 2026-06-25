@@ -491,7 +491,7 @@ const refreshSkills = (skillNames: readonly string[], timeoutMs: number): void =
 
 const resolveCliInstallHint = (): string =>
   CLI_VERSION.includes('-')
-    ? 'npm install -g @analyticscli/cli@preview'
+    ? 'npm install -g @analyticscli/cli'
     : 'npm install -g @analyticscli/cli';
 
 const runCliSelfUpdate = (): { ok: boolean; detail?: string } => {
@@ -502,7 +502,7 @@ const runCliSelfUpdate = (): { ok: boolean; detail?: string } => {
     };
   }
 
-  const packageSpecifier = CLI_VERSION.includes('-') ? '@analyticscli/cli@preview' : '@analyticscli/cli';
+  const packageSpecifier = CLI_VERSION.includes('-') ? '@analyticscli/cli' : '@analyticscli/cli';
   const result = runCommand('npm', ['install', '-g', packageSpecifier], {
     timeoutMs: 120_000,
   });

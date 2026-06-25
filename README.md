@@ -7,10 +7,6 @@ https://github.com/Wotaso/analyticscli-skills
 
 The same skills can also be used with OpenClaw.
 
-Current npm release channel: preview / experimental beta.
-If no stable release exists yet, `latest` points to the newest preview.
-Once stable releases exist, `latest` is pinned to the newest stable.
-
 ## Skills
 
 Available AnalyticsCLI skills:
@@ -24,19 +20,13 @@ Available AnalyticsCLI skills:
 No global install is required:
 
 ```bash
-npx @analyticscli/cli@preview onboard
-```
-
-When stable releases are available, use the package without a dist-tag:
-
-```bash
 npx @analyticscli/cli onboard
 ```
 
 Optional global install for daily usage:
 
 ```bash
-npm install -g @analyticscli/cli@preview
+npm install -g @analyticscli/cli
 ```
 
 ## Quick Start
@@ -49,7 +39,7 @@ You need:
 Interactive setup (recommended):
 
 ```bash
-npx @analyticscli/cli@preview onboard
+npx @analyticscli/cli onboard
 ```
 
 `onboard` installs agent skills and then asks whether to connect CLI query access. Paste a readonly CLI token from **Dashboard -> API Keys**, keep an existing stored token, or skip login and run `analyticscli login` later.
@@ -57,17 +47,17 @@ npx @analyticscli/cli@preview onboard
 Login only:
 
 ```bash
-npx @analyticscli/cli@preview login
+npx @analyticscli/cli login
 ```
 
 Then run your first queries:
 
 ```bash
-npx @analyticscli/cli@preview projects list
-npx @analyticscli/cli@preview schema events --project <project_id>
-npx @analyticscli/cli@preview funnel --project <project_id> --steps onboarding:start,onboarding:complete --last 30d
-npx @analyticscli/cli@preview timeseries --project <project_id> --metric event_count --interval 1d --last 30d --viz table
-npx @analyticscli/cli@preview generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
+npx @analyticscli/cli projects list
+npx @analyticscli/cli schema events --project <project_id>
+npx @analyticscli/cli funnel --project <project_id> --steps onboarding:start,onboarding:complete --last 30d
+npx @analyticscli/cli timeseries --project <project_id> --metric event_count --interval 1d --last 30d --viz table
+npx @analyticscli/cli generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
 ```
 
 ## Troubleshooting Empty States
