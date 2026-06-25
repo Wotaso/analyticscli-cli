@@ -476,8 +476,8 @@ export const registerAdvancedQueryCommands = (
     .option('--max-age-days <n>', 'Observation horizon in days for avg active span', '90')
     .option(
       '--identity-quality <mode>',
-      'Cohort identity filter: all or stable (stable excludes ephemeral/unknown SDK identities)',
-      'all',
+      'Cohort identity filter: stable or all (stable excludes ephemeral/unknown SDK identities; default)',
+      'stable',
     )
     .option('--last <duration>', 'Cohort time range like 30d', '30d')
     .option('--app-version <version>', 'Filter by appVersion')
@@ -509,7 +509,7 @@ export const registerAdvancedQueryCommands = (
           const projectId = await resolveProjectId(options.project);
           const days = parseRetentionDaysOption(options.days);
           const maxAgeDays = parseIntegerOption(options.maxAgeDays, '--max-age-days', 1, 365);
-          const identityQuality = options.identityQuality === 'stable' ? 'stable' : 'all';
+          const identityQuality = options.identityQuality === 'all' ? 'all' : 'stable';
 
           const payload = (await requestApi(
             'POST',

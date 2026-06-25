@@ -86,6 +86,8 @@ analyticscli retention --project <project_id> --anchor-event onboarding:start --
 analyticscli survey --project <project_id> --last 30d
 ```
 
+`retention` defaults to stable identity, so ephemeral/unknown SDK identities from users without full-tracking consent are excluded from multi-day D1/D7/D30 reads. Use `--identity-quality all` only when you intentionally want the noisy diagnostic view.
+
 ### Flexible grouped query
 
 ```bash
