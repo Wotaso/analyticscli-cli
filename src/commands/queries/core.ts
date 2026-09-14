@@ -9,7 +9,7 @@ import {
   resolveProjectOption,
   withMatchedRecords,
 } from '../../analytics-utils.js';
-import { noEventsFoundMessage } from '../../dx-messages.js';
+import { noQueryResultsMessage } from '../../dx-messages.js';
 import { requestApi } from '../../http.js';
 import {
   renderHorizontalBars,
@@ -351,7 +351,7 @@ export const registerCoreQueryCommands = (
           if ((vizMode === 'table' || vizMode === 'chart') && points.length === 0) {
             print(
               'text',
-              noEventsFoundMessage({
+              noQueryResultsMessage({
                 projectId,
                 last: options.last,
               }),

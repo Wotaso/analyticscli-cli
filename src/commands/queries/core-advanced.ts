@@ -10,7 +10,7 @@ import {
   withMatchedRecords,
 } from '../../analytics-utils.js';
 import { ONBOARDING_START_EVENT } from '../../constants.js';
-import { noEventsFoundMessage } from '../../dx-messages.js';
+import { noQueryResultsMessage } from '../../dx-messages.js';
 import { requestApi } from '../../http.js';
 import { renderTable } from '../../render.js';
 import type { CliCommandContext } from '../context.js';
@@ -468,7 +468,7 @@ export const registerAdvancedQueryCommands = (
                   '',
                   'No rows found for the selected range/filters.',
                   '',
-                  noEventsFoundMessage({
+                  noQueryResultsMessage({
                     projectId,
                     last: options.last,
                   }),
@@ -742,7 +742,7 @@ export const registerAdvancedQueryCommands = (
                 [
                   'No survey responses found for the selected window/filters.',
                   '',
-                  noEventsFoundMessage({
+                  noQueryResultsMessage({
                     projectId,
                     last: options.last,
                   }),

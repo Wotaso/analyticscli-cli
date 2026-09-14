@@ -27,3 +27,20 @@ export const noEventsFoundMessage = (input: {
     'If this project is already instrumented, widen your time range or remove restrictive filters.',
   ].join('\n');
 };
+
+export const noQueryResultsMessage = (input: {
+  projectId?: string;
+  last?: string;
+}): string => {
+  const projectSuffix = input.projectId ? ` --project ${input.projectId}` : '';
+  const lastSuffix = input.last ? ` --last ${input.last}` : '';
+
+  return [
+    'No events matched this query.',
+    '',
+    'What to try:',
+    '1) Widen the time range or remove one or more filters.',
+    '2) Check event names, platform, and project-surface values for exact matches.',
+    `3) Inspect available events: \`analyticscli schema events${projectSuffix}${lastSuffix}\`.`,
+  ].join('\n');
+};
