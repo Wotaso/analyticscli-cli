@@ -60,6 +60,12 @@ npx @analyticscli/cli timeseries --project <project_id> --metric event_count --i
 npx @analyticscli/cli generic --project <project_id> --metric event_count --group-by day,eventName --last 30d
 ```
 
+`projects list` fetches the current project list on every call. Account-wide readonly tokens
+include projects created after login, so an agent can discover new projects by running the command
+again without a new token. This requires an API deployment with dynamic account project discovery
+and server-side token status verification enabled. Legacy project-specific tokens remain restricted
+to their assigned project.
+
 Create a project without copying an admin token into your terminal:
 
 ```bash

@@ -297,7 +297,8 @@ export const createAnalyticsMcpServer = (options: McpServerOptions): McpServer =
     'analytics_projects_list',
     {
       title: 'List AnalyticsCLI projects',
-      description: 'List projects visible to the configured read-only token.',
+      description:
+        'Fetch the current projects visible to the configured read-only token. Account-wide tokens include newly created projects; call again to refresh discovery.',
       inputSchema: z.object({}),
       annotations: READ_ONLY_ANNOTATIONS,
     },

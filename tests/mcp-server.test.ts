@@ -6,10 +6,14 @@ import { createAnalyticsMcpServer } from '../src/mcp-server.js';
 
 test('AnalyticsCLI MCP exposes only annotated read-only tools and serves structured results', async () => {
   const originalFetch = globalThis.fetch;
+  const projects = [{ id: 'project-1', name: 'Example' }];
+  let projectRequests = 0;
   globalThis.fetch = async (input, init) => {
+    projectRequests++;
     assert.equal(String(input), 'https://api.analyticscli.com/v1/projects');
     assert.equal(init?.method, 'GET');
-    return new Response(JSON.stringify({ items: [{ id: 'project-1', name: 'Example' }] }), {
+    assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer test-readonly-token');
+    return new Response(JSON.stringify({ items: projects }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     });
@@ -63,6 +67,15 @@ test('AnalyticsCLI MCP exposes only annotated read-only tools and serves structu
       (result.structuredContent as { meta: { readOnly: boolean } }).meta.readOnly,
       true,
     );
+
+    projects.push({ id: 'project-2', name: 'New app' });
+    const refreshed = await client.callTool({ name: 'analytics_projects_list', arguments: {} });
+    assert.equal(refreshed.isError, undefined);
+    assert.deepEqual(
+      (refreshed.structuredContent as { result: { items: typeof projects } }).result.items,
+      projects,
+    );
+    assert.equal(projectRequests, 2);
   } finally {
     globalThis.fetch = originalFetch;
     await client.close();
